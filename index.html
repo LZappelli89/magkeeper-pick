@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v6 json-fix -->
+<!-- v7 hybrid -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -177,15 +177,15 @@ body{font-family:-apple-system,'SF Pro Display','Segoe UI',Roboto,sans-serif;bac
     <div class="load-icon">📦</div>
     <h2>Mobile Pick</h2>
     <div class="sub">Scan &amp; confirm order picks from your phone using a Bluetooth barcode scanner.</div>
-    <button class="btn btn-gold btn-lg btn-full" onclick="pickFile()">📂  Load Pick List</button>
+    <button class="btn btn-gold btn-lg btn-full" onclick="pickFile()">📂  Load Workbook</button>
     <div class="steps-box">
       <b>Before loading:</b><br>
       On the desktop, click 📱 Mobile Pick →<br>
-      "Generate Pick List"<br><br>
-      <span class="step-num">1</span>Tap <b>Load Pick List</b> above<br>
+      "Prepare Workbook for Mobile Pick"<br><br>
+      <span class="step-num">1</span>Tap <b>Load Workbook</b> above<br>
       <span class="step-num">2</span>Browse to <b>OneDrive</b><br>
-      <span class="step-num">3</span>Select <b>MagKeeper_PickList.json</b><br>
-      <span class="step-num">4</span>Scan labels → Submit → save back to OneDrive
+      <span class="step-num">3</span>Select your <b>main MagKeeper workbook</b><br>
+      <span class="step-num">4</span>Scan labels → Submit → saves JSON to OneDrive
     </div>
     <button class="btn btn-ghost btn-sm" onclick="loadDemo()">Try with demo data</button>
   </div>
@@ -196,7 +196,7 @@ body{font-family:-apple-system,'SF Pro Display','Segoe UI',Roboto,sans-serif;bac
   <div class="section-hdr">Pending Orders</div>
   <div id="orderList"></div>
   <div class="bnav">
-    <button class="btn btn-ghost btn-sm" onclick="show('s-load')">← Pick List</button>
+    <button class="btn btn-ghost btn-sm" onclick="show('s-load')">← Workbook</button>
     <button class="btn btn-teal btn-sm" onclick="pickAll()">⚡ Pick All</button>
   </div>
 </div>
@@ -246,14 +246,13 @@ body{font-family:-apple-system,'SF Pro Display','Segoe UI',Roboto,sans-serif;bac
   </div>
 </div>
 
-<input type="file" id="fIn" accept=".json,.xlsx,.xlsm" style="display:none">
+<input type="file" id="fIn" accept=".xlsx,.xlsm" style="display:none">
 
 <script>
 var wb=null,prods=[],orders=[],curOrder=null,curOrderIdx=-1,lines=[],confirmed=new Set();
 var phase='sticker',tgt=-1,scanned=0,hist=[];
 var pickState={};
 var originalFileName='';
-var pickJSON=null; // stores the loaded JSON data
 
 function show(id){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active')});document.getElementById(id).classList.add('active')}
 function toast(m,ms,e){var t=document.getElementById('toast');t.textContent=m;t.className='toast show'+(e?' err':'');setTimeout(function(){t.className='toast'},ms||2500)}
@@ -267,80 +266,25 @@ function pickFile(){
     var f=e.target.files[0];if(!f)return;
     originalFileName=f.name;
     document.getElementById('fileBadge').textContent=f.name;
-
-    if(f.name.endsWith('.json')){
-      // JSON pick list — primary path
-      var rd=new FileReader();
-      rd.onload=function(ev){
-        try{
-          var raw=ev.target.result;
-          dbg('JSON raw length: '+raw.length);
-          // Strip BOM and whitespace
-          raw=raw.replace(/^\uFEFF/,'').trim();
-          if(!raw||raw.length<5){
-            dbg('JSON content empty or too short: '+JSON.stringify(raw.substring(0,50)));
-            toast('File appears empty — re-sync from OneDrive',4000,true);
-            return;
-          }
-          dbg('JSON first 80 chars: '+raw.substring(0,80));
-          pickJSON=JSON.parse(raw);
-          dbg('JSON parsed OK');
-          parseJSON();
-          document.getElementById('dot').classList.add('on');
-          toast('Loaded — '+orders.length+' order(s)');
-          show('s-orders');
-        }catch(err){dbg('JSON error: '+err.message);toast('JSON error: '+err.message,4000,true)}
-      };
-      rd.readAsText(f,'UTF-8');
-    }else{
-      // xlsx fallback
-      var rd=new FileReader();
-      rd.onload=function(ev){
-        try{
-          wb=XLSX.read(ev.target.result,{type:'array'});
-          dbg('Sheets: '+(wb.SheetNames||[]).join(', '));
-          pickJSON=null;
-          parseXLSX();
-          document.getElementById('dot').classList.add('on');
-          toast('Loaded — '+orders.length+' order(s)');
-          show('s-orders');
-        }catch(err){dbg('XLSX error: '+err.message);toast('Load failed: '+err.message,4000,true)}
-      };
-      rd.readAsArrayBuffer(f);
-    }
+    var rd=new FileReader();
+    rd.onload=function(ev){
+      try{
+        wb=XLSX.read(ev.target.result,{type:'array'});
+        dbg('Sheets: '+(wb.SheetNames||[]).join(', '));
+        pickState={};
+        parseXLSX();
+        document.getElementById('dot').classList.add('on');
+        toast('Loaded — '+orders.length+' order(s)');
+        show('s-orders');
+      }catch(err){dbg('XLSX error: '+err.message);toast('Load failed: '+err.message,4000,true)}
+    };
+    rd.readAsArrayBuffer(f);
     inp.value='';
   };
   inp.click();
 }
 
-/* == PARSE JSON == */
-function parseJSON(){
-  prods=[];orders=[];pickState={};
-  if(!pickJSON){dbg('No JSON data');return}
-  // Products
-  var pl=pickJSON.products||[];
-  for(var i=0;i<pl.length;i++){
-    var p=pl[i];
-    prods.push({sap:String(p.sap||''),desc:String(p.desc||''),bq:parseInt(p.bq)||null});
-  }
-  dbg('Products: '+prods.length);
-  // Orders
-  var ol=pickJSON.orders||[];
-  for(var i=0;i<ol.length;i++){
-    var o=ol[i];
-    var order={id:String(o.id||''),date:String(o.date||''),cust:String(o.customer||''),loc:String(o.location||''),lines:[]};
-    var ll=o.lines||[];
-    for(var j=0;j<ll.length;j++){
-      var l=ll[j];
-      order.lines.push({desc:String(l.desc||''),batch:String(l.batch||''),qty:parseInt(l.qty)||0,st:'Pending'});
-    }
-    if(order.lines.length>0)orders.push(order);
-  }
-  dbg('Orders: '+orders.length);
-  renderOrders();
-}
-
-/* == PARSE XLSX (fallback) == */
+/* == PARSE XLSX == */
 function parseXLSX(){
   prods=[];orders=[];
   var names=wb.SheetNames||Object.keys(wb.Sheets);
@@ -383,7 +327,7 @@ function parseXLSX(){
   function fs(){for(var i=0;i<arguments.length;i++){if(wb.Sheets[arguments[i]])return wb.Sheets[arguments[i]];for(var j=0;j<names.length;j++){if(names[j].toLowerCase()===arguments[i].toLowerCase())return wb.Sheets[names[j]]}}return null}
   var ps=fs('Products'),ts=fs('Transaction');
   if(ps){XLSX.utils.sheet_to_json(ps,{defval:''}).forEach(function(r){var s=r['Sap Code']||r['SAP Code']||'';if(s)prods.push({sap:String(s),desc:String(r['Description']||''),bq:parseInt(r['Box Qty'])||null})})}
-  if(!ts){dbg('ERROR: No pick list or transaction data found');dbg('Sheets checked: '+names.join(', '));toast('No data found — check debug panel',5000,true);renderOrders();return}
+  if(!ts){dbg('ERROR: No data found');toast('Prepare workbook on desktop first',4000,true);renderOrders();return}
   var tx=XLSX.utils.sheet_to_json(ts,{defval:''});
   function gv(row){for(var i=1;i<arguments.length;i++){var k=arguments[i];if(row[k]!==undefined&&row[k]!=='')return String(row[k]).trim();var rk=Object.keys(row),kl=k.toLowerCase();for(var j=0;j<rk.length;j++){if(rk[j].trim().toLowerCase()===kl&&row[rk[j]]!==undefined&&row[rk[j]]!=='')return String(row[rk[j]]).trim()}}return''}
   var om={};
@@ -395,7 +339,7 @@ function parseXLSX(){
 /* == ORDERS == */
 function renderOrders(){
   var c=document.getElementById('orderList');
-  if(!orders.length){c.innerHTML='<div class="empty"><div class="icon">📋</div><p>No pending orders found.<br><br>Make sure you generated the pick list on the desktop first.</p></div>';return}
+  if(!orders.length){c.innerHTML='<div class="empty"><div class="icon">📋</div><p>No pending orders found.<br><br>Make sure you clicked "Prepare Workbook for Mobile Pick" on the desktop.</p></div>';return}
   var h='';
   for(var i=0;i<orders.length;i++){
     var o=orders[i],n=o.lines.length;

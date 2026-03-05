@@ -424,10 +424,49 @@ function renderHist(){
 /* ══ SUBMIT ══ */
 function submit(){
   if(confirmed.size<lines.length)return;
-  document.getElementById('pickLines').innerHTML='<div class="complete-card"><div class="big">✓</div><h3>Pick Complete</h3><p>'+curOrder.cust+' — '+confirmed.size+' lines confirmed</p></div><button class="btn btn-ghost btn-full btn-md" onclick="backOrders()" style="margin-top:12px">← Back to Orders</button>';
+  // Write pick results back to the MobilePick sheet
+  if(wb){
+    try{
+      var names=wb.SheetNames||Object.keys(wb.Sheets);
+      var mpName=null;
+      for(var i=0;i<names.length;i++){if(names[i]==='MobilePick'||names[i].toLowerCase()==='mobilepick'){mpName=names[i];break}}
+      if(!mpName&&names.length===1)mpName=names[0];
+      if(mpName){
+        var ws=wb.Sheets[mpName];
+        // Find the end of existing data
+        var range=XLSX.utils.decode_range(ws['!ref']||'A1');
+        var nextRow=range.e.r+2; // leave a gap
+        // Write ##PICKS header
+        XLSX.utils.sheet_add_aoa(ws,[['##PICKS','OrderID','Description','LabelQty','StickerScan','ActualBatch','Confirmed','Timestamp']],{origin:{r:nextRow,c:0}});
+        nextRow++;
+        var ts=new Date().toLocaleString('en-AU');
+        for(var i=0;i<lines.length;i++){
+          if(!confirmed.has(i))continue;
+          var l=lines[i];
+          XLSX.utils.sheet_add_aoa(ws,[['PICK',curOrder.id||'',l.desc,l.lq,l.stk||'',l.act||'','Y',ts]],{origin:{r:nextRow,c:0}});
+          nextRow++;
+        }
+        // Update range
+        range.e.r=nextRow;
+        if(range.e.c<7)range.e.c=7;
+        ws['!ref']=XLSX.utils.encode_range(range);
+      }
+      // Generate and download
+      var out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+      var blob=new Blob([out],{type:'application/octet-stream'});
+      var a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download='MagKeeper_Picked.xlsx';
+      document.body.appendChild(a);a.click();document.body.removeChild(a);
+      toast('Pick saved — import on desktop',3000);
+    }catch(err){
+      dbg('Save error: '+err.message);
+      toast('Save failed: '+err.message,4000,true);
+    }
+  }
+  document.getElementById('pickLines').innerHTML='<div class="complete-card"><div class="big">✓</div><h3>Pick Complete &amp; Saved</h3><p>'+curOrder.cust+' — '+confirmed.size+' lines</p><p style="margin-top:10px;font-size:12px;color:var(--gold)">File downloaded as MagKeeper_Picked.xlsx<br>Save it to OneDrive, then on desktop:<br>📱 Mobile Pick → Import Mobile Picks</p></div><button class="btn btn-ghost btn-full btn-md" onclick="backOrders()" style="margin-top:12px">← Back to Orders</button>';
   document.getElementById('pickNav').style.display='none';
   document.getElementById('scanBtn').style.display='none';
-  toast('Pick complete!',3000);
 }
 function backOrders(){document.getElementById('pickNav').style.display='flex';renderOrders();show('s-orders')}
 function pickAll(){

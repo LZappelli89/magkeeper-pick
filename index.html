@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v2 1772732890 -->
+<!-- v3 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -288,14 +288,17 @@ function parse(){
   prods=[];orders=[];
   var names=wb.SheetNames||Object.keys(wb.Sheets);
   var mp=null;
+  // Check every sheet for ##PRODUCTS marker — handles any iOS renaming
   for(var i=0;i<names.length;i++){
-    var sn=names[i].toLowerCase();
-    if(sn==='picklist'||sn==='mobilepick'){mp=wb.Sheets[names[i]];break}
-  }
-  if(!mp&&names.length===1){
-    var w1=wb.Sheets[names[0]];
-    var t1=XLSX.utils.sheet_to_json(w1,{defval:'',header:1});
-    if(t1.length>0&&String(t1[0][0])==='##PRODUCTS'){mp=w1;dbg('Sheet1 = MobilePick')}
+    var ws=wb.Sheets[names[i]];
+    var t1=XLSX.utils.sheet_to_json(ws,{defval:'',header:1});
+    dbg('Sheet "'+names[i]+'": '+t1.length+' rows, first cell: '+JSON.stringify(t1.length>0?t1[0][0]:'empty'));
+    if(t1.length>0){
+      var fc=String(t1[0][0]||'').trim();
+      if(fc==='##PRODUCTS'||fc.indexOf('##PRODUCT')===0||fc.indexOf('PRODUCTS')>=0){
+        mp=ws;dbg('Found PickList data in: '+names[i]);break;
+      }
+    }
   }
   if(mp){
     dbg('Using MobilePick sheet');
@@ -323,7 +326,7 @@ function parse(){
   function fs(){for(var i=0;i<arguments.length;i++){if(wb.Sheets[arguments[i]])return wb.Sheets[arguments[i]];for(var j=0;j<names.length;j++){if(names[j].toLowerCase()===arguments[i].toLowerCase())return wb.Sheets[names[j]]}}return null}
   var ps=fs('Products'),ts=fs('Transaction');
   if(ps){XLSX.utils.sheet_to_json(ps,{defval:''}).forEach(function(r){var s=r['Sap Code']||r['SAP Code']||'';if(s)prods.push({sap:String(s),desc:String(r['Description']||''),bq:parseInt(r['Box Qty'])||null})})}
-  if(!ts){dbg('ERROR: No data found');toast('Generate pick list on desktop first',4000,true);renderOrders();return}
+  if(!ts){dbg('ERROR: No pick list or transaction data found');dbg('Sheets checked: '+names.join(', '));toast('No data found — check debug panel',5000,true);renderOrders();return}
   var tx=XLSX.utils.sheet_to_json(ts,{defval:''});
   function gv(row){for(var i=1;i<arguments.length;i++){var k=arguments[i];if(row[k]!==undefined&&row[k]!=='')return String(row[k]).trim();var rk=Object.keys(row),kl=k.toLowerCase();for(var j=0;j<rk.length;j++){if(rk[j].trim().toLowerCase()===kl&&row[rk[j]]!==undefined&&row[rk[j]]!=='')return String(row[rk[j]]).trim()}}return''}
   var om={};

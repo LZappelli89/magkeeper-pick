@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v5 json -->
+<!-- v6 json-fix -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -273,15 +273,25 @@ function pickFile(){
       var rd=new FileReader();
       rd.onload=function(ev){
         try{
-          pickJSON=JSON.parse(ev.target.result);
-          dbg('JSON loaded: '+f.name);
+          var raw=ev.target.result;
+          dbg('JSON raw length: '+raw.length);
+          // Strip BOM and whitespace
+          raw=raw.replace(/^\uFEFF/,'').trim();
+          if(!raw||raw.length<5){
+            dbg('JSON content empty or too short: '+JSON.stringify(raw.substring(0,50)));
+            toast('File appears empty — re-sync from OneDrive',4000,true);
+            return;
+          }
+          dbg('JSON first 80 chars: '+raw.substring(0,80));
+          pickJSON=JSON.parse(raw);
+          dbg('JSON parsed OK');
           parseJSON();
           document.getElementById('dot').classList.add('on');
           toast('Loaded — '+orders.length+' order(s)');
           show('s-orders');
-        }catch(err){dbg('JSON error: '+err.message);toast('Invalid JSON: '+err.message,4000,true)}
+        }catch(err){dbg('JSON error: '+err.message);toast('JSON error: '+err.message,4000,true)}
       };
-      rd.readAsText(f);
+      rd.readAsText(f,'UTF-8');
     }else{
       // xlsx fallback
       var rd=new FileReader();

@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="MagKeeper">
 <title>MagKeeper Pro — Mobile Pick</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <style>
 :root{
   --navy:#1a1d2e;--navy2:#252940;--navy3:#2c3150;
@@ -123,6 +124,19 @@ body{font-family:-apple-system,'SF Pro Display','Segoe UI',Roboto,sans-serif;bac
 .sc-bt{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin:14px 0;text-align:center}
 .sc-bt b{color:var(--teal);font-size:12px}
 .sc-bt p{color:var(--dim);font-size:11px;margin-top:4px;line-height:1.5}
+.sc-mode-bar{display:flex;gap:6px;margin-bottom:14px}
+.sc-mode-btn{flex:1;padding:10px;border:2px solid var(--border);border-radius:10px;background:transparent;color:var(--dim);font-size:13px;font-weight:700;cursor:pointer;text-align:center;-webkit-appearance:none}
+.sc-mode-btn.active{border-color:var(--teal);color:var(--teal);background:rgba(46,135,212,.08)}
+.sc-mode-btn.active.cam-active{border-color:var(--gold);color:var(--gold);background:rgba(232,135,44,.08)}
+.cam-wrap{display:none;position:relative;width:100%;border-radius:14px;overflow:hidden;margin-bottom:12px;background:#000;aspect-ratio:4/3}
+.cam-wrap.on{display:block}
+.cam-wrap video{width:100%;height:100%;object-fit:cover}
+.cam-wrap canvas{display:none}
+.cam-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.cam-target{width:65%;height:65%;border:3px solid rgba(232,135,44,.6);border-radius:12px}
+.cam-status{position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:12px;font-weight:700;color:var(--gold);text-shadow:0 1px 4px rgba(0,0,0,.8)}
+.bt-section{display:block}
+.bt-section.hide{display:none}
 
 /* ── Bottom Nav ── */
 .bnav{position:fixed;bottom:0;left:0;right:0;background:var(--navy);border-top:1px solid var(--border);padding:10px 16px;padding-bottom:max(10px,env(safe-area-inset-bottom));display:flex;gap:8px;z-index:100}
@@ -162,15 +176,15 @@ body{font-family:-apple-system,'SF Pro Display','Segoe UI',Roboto,sans-serif;bac
     <div class="load-icon">📦</div>
     <h2>Mobile Pick</h2>
     <div class="sub">Scan &amp; confirm order picks from your phone using a Bluetooth barcode scanner.</div>
-    <button class="btn btn-gold btn-lg btn-full" onclick="pickFile()">📂  Load Workbook</button>
+    <button class="btn btn-gold btn-lg btn-full" onclick="pickFile()">📂  Load Pick List</button>
     <div class="steps-box">
       <b>Before loading:</b><br>
       On the desktop, click 📱 Mobile Pick →<br>
-      "Prepare Workbook for Mobile Pick"<br><br>
-      <span class="step-num">1</span>Tap <b>Load Workbook</b> above<br>
+      "Generate Pick List"<br><br>
+      <span class="step-num">1</span>Tap <b>Load Pick List</b> above<br>
       <span class="step-num">2</span>Browse to <b>OneDrive</b> in the file picker<br>
-      <span class="step-num">3</span>Select your MagKeeper <b>.xlsx</b> file<br>
-      <span class="step-num">4</span>Pending orders appear — start scanning
+      <span class="step-num">3</span>Select <b>MagKeeper_PickList.xlsx</b><br>
+      <span class="step-num">4</span>Scan labels → Submit → save back to OneDrive
     </div>
     <button class="btn btn-ghost btn-sm" onclick="loadDemo()">Try with demo data</button>
   </div>
@@ -181,7 +195,7 @@ body{font-family:-apple-system,'SF Pro Display','Segoe UI',Roboto,sans-serif;bac
   <div class="section-hdr">Pending Orders</div>
   <div id="orderList"></div>
   <div class="bnav">
-    <button class="btn btn-ghost btn-sm" onclick="show('s-load')">← Workbook</button>
+    <button class="btn btn-ghost btn-sm" onclick="show('s-load')">← Pick List</button>
     <button class="btn btn-teal btn-sm" onclick="pickAll()">⚡ Pick All</button>
   </div>
 </div>
@@ -207,15 +221,26 @@ body{font-family:-apple-system,'SF Pro Display','Segoe UI',Roboto,sans-serif;bac
   </div>
   <div class="sc-body">
     <div class="sc-counter" id="scCount">Ready to scan</div>
+    <div class="sc-mode-bar">
+      <button class="sc-mode-btn active" id="modeBT" onclick="setScanMode('bt')">⌨️ Scanner / Type</button>
+      <button class="sc-mode-btn" id="modeCam" onclick="setScanMode('cam')">📷 Camera</button>
+    </div>
     <div class="sc-prompt">
       <div class="ico" id="scIco">🏷️</div>
       <div class="lbl" id="scLbl">Scan QR Sticker</div>
       <div class="hint" id="scHint">Bluetooth scanner or type code</div>
     </div>
-    <input class="sc-input" id="scIn" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="Scan or type..." onkeydown="if(event.key==='Enter'){event.preventDefault();doScan();}">
-    <button class="sc-go" id="scGo" onclick="doScan()">✓ Process</button>
+    <div class="cam-wrap" id="camWrap">
+      <video id="camVideo" playsinline autoplay muted></video>
+      <canvas id="camCanvas"></canvas>
+      <div class="cam-overlay"><div class="cam-target"></div></div>
+      <div class="cam-status" id="camStatus">Point at QR code or barcode...</div>
+    </div>
+    <div class="bt-section" id="btSection">
+      <input class="sc-input" id="scIn" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="Scan or type..." onkeydown="if(event.key==='Enter'){event.preventDefault();doScan();}">
+      <button class="sc-go" id="scGo" onclick="doScan()">✓ Process</button>
+    </div>
     <div class="sc-result" id="scRes"><div class="info">Waiting for scan...</div></div>
-    <div class="sc-bt"><b>Bluetooth Scanner</b><p>Pair a BT scanner with your phone — it types the code + Enter automatically. No camera needed.</p></div>
     <div class="sc-hist" id="scHist"></div>
   </div>
 </div>
@@ -262,7 +287,10 @@ function parse(){
   prods=[];orders=[];
   var names=wb.SheetNames||Object.keys(wb.Sheets);
   var mp=null;
-  for(var i=0;i<names.length;i++){if(names[i]==='MobilePick'||names[i].toLowerCase()==='mobilepick'){mp=wb.Sheets[names[i]];break}}
+  for(var i=0;i<names.length;i++){
+    var sn=names[i].toLowerCase();
+    if(sn==='picklist'||sn==='mobilepick'){mp=wb.Sheets[names[i]];break}
+  }
   if(!mp&&names.length===1){
     var w1=wb.Sheets[names[0]];
     var t1=XLSX.utils.sheet_to_json(w1,{defval:'',header:1});
@@ -294,7 +322,7 @@ function parse(){
   function fs(){for(var i=0;i<arguments.length;i++){if(wb.Sheets[arguments[i]])return wb.Sheets[arguments[i]];for(var j=0;j<names.length;j++){if(names[j].toLowerCase()===arguments[i].toLowerCase())return wb.Sheets[names[j]]}}return null}
   var ps=fs('Products'),ts=fs('Transaction');
   if(ps){XLSX.utils.sheet_to_json(ps,{defval:''}).forEach(function(r){var s=r['Sap Code']||r['SAP Code']||'';if(s)prods.push({sap:String(s),desc:String(r['Description']||''),bq:parseInt(r['Box Qty'])||null})})}
-  if(!ts){dbg('ERROR: No data found');toast('Prepare workbook on desktop first',4000,true);renderOrders();return}
+  if(!ts){dbg('ERROR: No data found');toast('Generate pick list on desktop first',4000,true);renderOrders();return}
   var tx=XLSX.utils.sheet_to_json(ts,{defval:''});
   function gv(row){for(var i=1;i<arguments.length;i++){var k=arguments[i];if(row[k]!==undefined&&row[k]!=='')return String(row[k]).trim();var rk=Object.keys(row),kl=k.toLowerCase();for(var j=0;j<rk.length;j++){if(rk[j].trim().toLowerCase()===kl&&row[rk[j]]!==undefined&&row[rk[j]]!=='')return String(row[rk[j]]).trim()}}return''}
   var om={};
@@ -306,7 +334,7 @@ function parse(){
 /* == ORDERS == */
 function renderOrders(){
   var c=document.getElementById('orderList');
-  if(!orders.length){c.innerHTML='<div class="empty"><div class="icon">📋</div><p>No pending orders found.<br><br>Make sure you clicked "Prepare Workbook" on the desktop.</p></div>';return}
+  if(!orders.length){c.innerHTML='<div class="empty"><div class="icon">📋</div><p>No pending orders found.<br><br>Make sure you generated the pick list on the desktop first.</p></div>';return}
   var h='';
   for(var i=0;i<orders.length;i++){
     var o=orders[i],n=o.lines.length;
@@ -395,11 +423,17 @@ function findLine(code){
 /* == SCANNER == */
 function openScanner(){
   phase='sticker';tgt=-1;scanned=confirmed.size;
+  scanMode='bt';
+  document.getElementById('modeBT').className='sc-mode-btn active';
+  document.getElementById('modeCam').className='sc-mode-btn';
+  document.getElementById('btSection').className='bt-section';
+  document.getElementById('camWrap').className='cam-wrap';
   document.getElementById('scanner').classList.add('active');
   updateSC();
   setTimeout(function(){var el=document.getElementById('scIn');el.value='';el.focus()},100);
 }
 function closeScanner(){
+  stopCam();scanMode='bt';
   document.getElementById('scanner').classList.remove('active');
   saveState();renderLines();updateProg();
 }
@@ -474,7 +508,7 @@ function submit(){
         ws['!ref']=XLSX.utils.encode_range(range);
       }
       var out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
-      var fname=originalFileName||'MagKeeper_Picked.xlsx';
+      var fname=originalFileName||'MagKeeper_PickList.xlsx';
       var blob=new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
       var file=new File([blob],fname,{type:blob.type});
       // Try iOS Share Sheet first — lets user save to same OneDrive folder
@@ -498,7 +532,7 @@ function submit(){
     }
   }
   var partial=d<t?' (partial — '+(t-d)+' not scanned)':'';
-  document.getElementById('pickLines').innerHTML='<div class="complete-card"><div class="big">✓</div><h3>Pick Submitted'+partial+'</h3><p>'+curOrder.cust+' — '+d+' of '+t+' lines</p><p style="margin-top:10px;font-size:12px;color:var(--gold)">Save the file to the same OneDrive folder<br>as your workbook using the share sheet.<br><br>On desktop: 📱 Mobile Pick → Import Mobile Picks</p></div><button class="btn btn-ghost btn-full btn-md" onclick="backOrders()" style="margin-top:12px">← Back to Orders</button>';
+  document.getElementById('pickLines').innerHTML='<div class="complete-card"><div class="big">✓</div><h3>Pick Submitted'+partial+'</h3><p>'+curOrder.cust+' — '+d+' of '+t+' lines</p><p style="margin-top:10px;font-size:12px;color:var(--gold)">Save the file back to your OneDrive folder<br>(same location as the pick list).<br><br>On desktop: 📱 Mobile Pick → Import Completed Pick List</p></div><button class="btn btn-ghost btn-full btn-md" onclick="backOrders()" style="margin-top:12px">← Back to Orders</button>';
   document.getElementById('pickNav').style.display='none';
   document.getElementById('scanBtn').style.display='none';
   delete pickState[orderKey(curOrder)];
@@ -528,6 +562,130 @@ function loadDemo(){
   document.getElementById('fileBadge').textContent='Demo';
   toast('Demo loaded');renderOrders();show('s-orders');
 }
+
+/* == CAMERA SCAN == */
+var scanMode='bt';
+var camStream=null;
+var camAnimId=null;
+var lastCamCode='';
+var camCooldown=false;
+
+function setScanMode(mode){
+  scanMode=mode;
+  document.getElementById('modeBT').className='sc-mode-btn'+(mode==='bt'?' active':'');
+  document.getElementById('modeCam').className='sc-mode-btn'+(mode==='cam'?' active cam-active':'');
+  document.getElementById('btSection').className='bt-section'+(mode==='cam'?' hide':'');
+  document.getElementById('camWrap').className='cam-wrap'+(mode==='cam'?' on':'');
+  if(mode==='cam'){
+    startCam();
+  }else{
+    stopCam();
+    setTimeout(function(){var el=document.getElementById('scIn');if(el){el.value='';el.focus()}},100);
+  }
+}
+
+function startCam(){
+  var video=document.getElementById('camVideo');
+  var status=document.getElementById('camStatus');
+  status.textContent='Starting camera...';
+
+  // Try BarcodeDetector API first (Safari 15.4+, handles QR + Code128)
+  var useBarcodeDetector=typeof BarcodeDetector!=='undefined';
+  var detector=null;
+  if(useBarcodeDetector){
+    try{
+      detector=new BarcodeDetector({formats:['qr_code','code_128','code_39','ean_13']});
+    }catch(e){useBarcodeDetector=false}
+  }
+
+  navigator.mediaDevices.getUserMedia({
+    video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}}
+  }).then(function(stream){
+    camStream=stream;
+    video.srcObject=stream;
+    video.play();
+    status.textContent='Point at QR code or barcode...';
+    scanFrame(video,detector,useBarcodeDetector);
+  }).catch(function(err){
+    status.textContent='Camera error: '+err.message;
+    dbg('Camera error: '+err.message);
+    toast('Camera unavailable — use scanner/type',3000,true);
+    setScanMode('bt');
+  });
+}
+
+function scanFrame(video,detector,useBD){
+  if(!camStream||scanMode!=='cam')return;
+  var canvas=document.getElementById('camCanvas');
+  var ctx=canvas.getContext('2d',{willReadFrequently:true});
+  var status=document.getElementById('camStatus');
+
+  function tick(){
+    if(!camStream||scanMode!=='cam'){return}
+    if(video.readyState<2){camAnimId=requestAnimationFrame(tick);return}
+
+    canvas.width=video.videoWidth;
+    canvas.height=video.videoHeight;
+    ctx.drawImage(video,0,0);
+
+    if(camCooldown){camAnimId=requestAnimationFrame(tick);return}
+
+    if(useBD&&detector){
+      // BarcodeDetector — handles QR + 1D barcodes
+      detector.detect(canvas).then(function(codes){
+        if(codes.length>0){
+          var val=codes[0].rawValue;
+          if(val&&val!==lastCamCode){
+            lastCamCode=val;
+            onCamScan(val.trim().toUpperCase());
+          }
+        }
+      }).catch(function(){});
+    }else if(typeof jsQR!=='undefined'){
+      // Fallback: jsQR for QR codes only
+      var imgData=ctx.getImageData(0,0,canvas.width,canvas.height);
+      var code=jsQR(imgData.data,canvas.width,canvas.height,{inversionAttempts:'attemptBoth'});
+      if(code&&code.data){
+        var val=code.data.trim().toUpperCase();
+        if(val!==lastCamCode){
+          lastCamCode=val;
+          onCamScan(val);
+        }
+      }
+    }
+    camAnimId=requestAnimationFrame(tick);
+  }
+  tick();
+}
+
+function onCamScan(val){
+  // Cooldown to prevent rapid duplicate reads
+  camCooldown=true;
+  setTimeout(function(){camCooldown=false;lastCamCode=''},1500);
+
+  try{navigator.vibrate(100)}catch(e){}
+  var status=document.getElementById('camStatus');
+  status.textContent='✓ Read: '+val;
+
+  // Feed into the same scan pipeline
+  var inp=document.getElementById('scIn');
+  inp.value=val;
+  doScan();
+}
+
+function stopCam(){
+  if(camAnimId){cancelAnimationFrame(camAnimId);camAnimId=null}
+  if(camStream){
+    camStream.getTracks().forEach(function(t){t.stop()});
+    camStream=null;
+  }
+  var video=document.getElementById('camVideo');
+  if(video)video.srcObject=null;
+  lastCamCode='';
+}
+
+// Camera cleanup handled in closeScanner above
+
 
 </script>
 </body>

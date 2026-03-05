@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MagKeeper">
+<title>MagKeeper Pro — Mobile Pick</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  --navy:#1a1d2e;--navy2:#252940;--navy3:#2c3150;
+  --gold:#e8872c;--gold-dim:#c06e1a;
+  --green:#24a870;--green-dim:#1c8a5b;--green-bg:#132e22;
+  --red:#cc3d3d;--teal:#2e87d4;
+  --bg:#0d0f17;--card:#161929;--card2:#1c2035;
+  --text:#e8eaf0;--text2:#c0c6d4;--dim:#6b7490;
+  --border:#262b45;--border2:#333958;
+  --gold-glow:rgba(232,135,44,.12);--green-glow:rgba(36,168,112,.12);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{background:var(--bg)}
+body{font-family:-apple-system,'SF Pro Display','Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;min-height:100dvh;-webkit-font-smoothing:antialiased}
+
+/* ── Top Bar ── */
+.topbar{background:var(--navy);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid var(--gold);position:sticky;top:0;z-index:100}
+.topbar-logo{display:flex;align-items:center;gap:11px}
+.topbar-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--gold),var(--gold-dim));border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;color:white;letter-spacing:-.5px;box-shadow:0 2px 8px rgba(232,135,44,.3)}
+.topbar h1{font-size:19px;font-weight:800;letter-spacing:-.3px}
+.topbar h1 b{color:var(--gold)}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--dim);transition:all .3s}
+.dot.on{background:var(--green);box-shadow:0 0 10px var(--green)}
+.file-badge{font-size:10px;color:var(--dim);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ── Screens ── */
+.screen{display:none;padding:16px 16px 110px}
+.screen.active{display:block}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;transition:all .12s;-webkit-appearance:none;letter-spacing:.2px}
+.btn:active{transform:scale(.97);filter:brightness(.92)}
+.btn-lg{padding:16px 28px;font-size:17px;border-radius:14px}
+.btn-md{padding:12px 22px}
+.btn-sm{padding:9px 16px;font-size:13px;border-radius:9px}
+.btn-full{width:100%}
+.btn-gold{background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:white}
+.btn-green{background:linear-gradient(135deg,var(--green),var(--green-dim));color:white}
+.btn-teal{background:var(--teal);color:white}
+.btn-ghost{background:transparent;color:var(--dim);border:1.5px solid var(--border2)}
+.btn-danger{background:var(--red);color:white}
+
+/* ── Load Screen ── */
+.load-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:75vh;text-align:center;gap:22px;padding:0 8px}
+.load-icon{width:88px;height:88px;border-radius:22px;background:linear-gradient(135deg,var(--gold),var(--gold-dim));display:flex;align-items:center;justify-content:center;font-size:40px;box-shadow:0 10px 40px rgba(232,135,44,.25)}
+.load-wrap h2{font-size:24px;font-weight:800;letter-spacing:-.3px}
+.load-wrap .sub{color:var(--dim);font-size:13px;max-width:280px;line-height:1.6}
+.steps-box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 18px;text-align:left;font-size:13px;color:var(--text2);line-height:1.7;max-width:340px;width:100%}
+.steps-box b{color:var(--gold)}
+.steps-box .step-num{display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;border-radius:6px;background:var(--navy3);color:var(--gold);font-size:11px;font-weight:800;margin-right:6px}
+
+/* ── Order Cards ── */
+.section-hdr{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--dim);padding:6px 0;margin-top:10px}
+.order-card{background:var(--card);border-radius:14px;padding:16px;margin-bottom:10px;border:1px solid var(--border);cursor:pointer;transition:border-color .15s}
+.order-card:active{border-color:var(--gold);background:var(--card2)}
+.oc-top{display:flex;justify-content:space-between;align-items:center}
+.oc-cust{font-size:17px;font-weight:800}
+.oc-badge{padding:4px 10px;border-radius:8px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;background:rgba(240,192,64,.12);color:#f0c040}
+.oc-meta{display:flex;gap:18px;font-size:12px;color:var(--dim);margin-top:8px}
+.oc-lines{margin-top:10px;border-top:1px solid var(--border);padding-top:10px}
+.oc-line{display:flex;justify-content:space-between;font-size:13px;color:var(--text2);padding:3px 0}
+.oc-line span:last-child{color:var(--gold);font-weight:700;font-family:'SF Mono',monospace}
+
+/* ── Pick Screen ── */
+.pick-hdr{background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;border-left:4px solid var(--gold)}
+.pick-hdr h2{font-size:19px;font-weight:800}
+.pick-hdr .meta{font-size:12px;color:var(--dim);margin-top:4px}
+.prog-bar{background:var(--navy2);border-radius:8px;height:6px;margin:10px 0;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--green),#34d890);border-radius:8px;transition:width .4s ease}
+.prog-text{font-size:12px;color:var(--dim);text-align:center;margin-bottom:14px}
+.scan-big{width:100%;padding:18px;border:2px dashed var(--gold);border-radius:14px;background:var(--gold-glow);color:var(--gold);font-size:17px;font-weight:800;cursor:pointer;margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:10px;-webkit-appearance:none;letter-spacing:.3px}
+.scan-big:active{background:rgba(232,135,44,.2)}
+
+/* ── Pick Lines ── */
+.pl{background:var(--card);border-radius:12px;padding:14px 16px;margin-bottom:8px;border:1px solid var(--border);transition:all .25s}
+.pl.done{border-color:var(--green);background:var(--green-bg)}
+.pl-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+.pl-num{font-size:10px;font-weight:800;color:var(--dim);background:var(--navy2);padding:2px 8px;border-radius:5px;letter-spacing:.5px}
+.pl-qty{font-size:14px;font-weight:900;color:var(--gold);font-family:'SF Mono',monospace}
+.pl-desc{font-size:15px;font-weight:700}
+.pl-batch{font-size:12px;color:var(--dim);margin-top:2px}
+.pl-ok{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:#6fe8a0;margin-top:8px}
+
+/* ── Scanner Overlay ── */
+.scanner{display:none;position:fixed;inset:0;z-index:200;background:var(--bg);flex-direction:column}
+.scanner.active{display:flex}
+.sc-hdr{padding:14px 18px;background:var(--navy);display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid var(--teal)}
+.sc-hdr h3{font-size:16px;font-weight:800}
+.sc-phase{font-size:11px;font-weight:700;margin-top:2px;color:var(--teal);letter-spacing:.3px}
+.sc-body{flex:1;display:flex;flex-direction:column;padding:20px 18px;overflow-y:auto}
+.sc-counter{text-align:center;font-size:13px;color:var(--gold);font-weight:700;margin-bottom:18px;letter-spacing:.3px}
+.sc-prompt{text-align:center;margin-bottom:22px}
+.sc-prompt .ico{font-size:52px;margin-bottom:10px}
+.sc-prompt .lbl{font-size:22px;font-weight:900;margin-bottom:4px;letter-spacing:-.3px}
+.sc-prompt .hint{font-size:13px;color:var(--dim)}
+.sc-input{width:100%;padding:18px;font-size:21px;font-family:'SF Mono','Courier New',monospace;background:var(--navy);border:2.5px solid var(--teal);border-radius:14px;color:var(--text);outline:none;text-align:center;letter-spacing:1.5px}
+.sc-input:focus{border-color:var(--gold);box-shadow:0 0 24px rgba(232,135,44,.15)}
+.sc-input.batch{border-color:var(--gold)}
+.sc-go{width:100%;padding:16px;border:none;border-radius:13px;font-size:17px;font-weight:800;cursor:pointer;margin:14px 0;-webkit-appearance:none;background:var(--teal);color:white;letter-spacing:.3px}
+.sc-go:active{filter:brightness(.88)}
+.sc-go.batch{background:var(--gold)}
+.sc-result{background:var(--card);border-radius:12px;padding:16px;margin-bottom:14px;border:1px solid var(--border);text-align:center;min-height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.sc-result .ok{font-size:16px;font-weight:800;color:#6fe8a0}
+.sc-result .prod{font-size:15px;font-weight:700;color:var(--gold);margin:4px 0}
+.sc-result .info{font-size:12px;color:var(--dim)}
+.sc-result .warn{font-size:14px;color:var(--red);font-weight:700}
+.sc-hist{margin-top:auto}
+.sc-hist-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--dim);margin-bottom:6px}
+.sc-hist-item{display:flex;justify-content:space-between;padding:8px 12px;background:var(--green-bg);border-radius:8px;margin-bottom:4px;font-size:12px}
+.sc-hist-item .l{color:#6fe8a0;font-weight:700}
+.sc-hist-item .r{color:var(--dim);font-family:'SF Mono',monospace;font-size:11px}
+.sc-bt{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin:14px 0;text-align:center}
+.sc-bt b{color:var(--teal);font-size:12px}
+.sc-bt p{color:var(--dim);font-size:11px;margin-top:4px;line-height:1.5}
+
+/* ── Bottom Nav ── */
+.bnav{position:fixed;bottom:0;left:0;right:0;background:var(--navy);border-top:1px solid var(--border);padding:10px 16px;padding-bottom:max(10px,env(safe-area-inset-bottom));display:flex;gap:8px;z-index:100}
+.bnav .btn{flex:1}
+
+/* ── Toast ── */
+.toast{position:fixed;top:72px;left:50%;transform:translateX(-50%) translateY(-20px);padding:12px 24px;border-radius:12px;font-size:14px;font-weight:700;opacity:0;transition:all .3s;z-index:300;pointer-events:none;white-space:nowrap;color:white;background:var(--green);box-shadow:0 6px 20px rgba(0,0,0,.3)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.err{background:var(--red)}
+.empty{text-align:center;padding:50px 20px;color:var(--dim)}
+.empty .icon{font-size:52px;margin-bottom:14px}
+.debug{display:none;background:var(--navy);color:var(--dim);font-size:10px;font-family:'SF Mono',monospace;padding:6px 14px;border-bottom:1px solid var(--border);white-space:pre-wrap;word-break:break-all;max-height:100px;overflow-y:auto}
+.complete-card{background:var(--green-bg);border:1.5px solid var(--green);border-radius:16px;padding:24px;text-align:center;margin:20px 0}
+.complete-card .big{font-size:52px;margin-bottom:10px}
+.complete-card h3{font-size:20px;color:#6fe8a0;font-weight:800}
+.complete-card p{font-size:13px;color:var(--dim);margin-top:8px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-logo">
+    <div class="topbar-icon">MK</div>
+    <h1>MagKeeper <b>Pro</b></h1>
+  </div>
+  <div class="topbar-right">
+    <div class="file-badge" id="fileBadge"></div>
+    <div class="dot" id="dot"></div>
+  </div>
+</div>
+<div id="debug" class="debug"></div>
+<div class="toast" id="toast"></div>
+
+<!-- ═══ LOAD ═══ -->
+<div class="screen active" id="s-load">
+  <div class="load-wrap">
+    <div class="load-icon">📦</div>
+    <h2>Mobile Pick</h2>
+    <div class="sub">Scan &amp; confirm order picks from your phone using a Bluetooth barcode scanner.</div>
+    <button class="btn btn-gold btn-lg btn-full" onclick="pickFile()">📂  Load Workbook</button>
+    <div class="steps-box">
+      <b>Before loading:</b><br>
+      On the desktop, click 📱 Mobile Pick →<br>
+      "Prepare Workbook for Mobile Pick"<br><br>
+      <span class="step-num">1</span>Tap <b>Load Workbook</b> above<br>
+      <span class="step-num">2</span>Browse to <b>OneDrive</b> in the file picker<br>
+      <span class="step-num">3</span>Select your MagKeeper <b>.xlsx</b> file<br>
+      <span class="step-num">4</span>Pending orders appear — start scanning
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="loadDemo()">Try with demo data</button>
+  </div>
+</div>
+
+<!-- ═══ ORDERS ═══ -->
+<div class="screen" id="s-orders">
+  <div class="section-hdr">Pending Orders</div>
+  <div id="orderList"></div>
+  <div class="bnav">
+    <button class="btn btn-ghost btn-sm" onclick="show('s-load')">← Workbook</button>
+    <button class="btn btn-teal btn-sm" onclick="pickAll()">⚡ Pick All</button>
+  </div>
+</div>
+
+<!-- ═══ PICK ═══ -->
+<div class="screen" id="s-pick">
+  <div class="pick-hdr" id="pickHdr"></div>
+  <div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
+  <div class="prog-text" id="progText"></div>
+  <button class="scan-big" id="scanBtn" onclick="openScanner()">⚡  Scan Labels</button>
+  <div id="pickLines"></div>
+  <div class="bnav" id="pickNav">
+    <button class="btn btn-ghost btn-sm" onclick="backOrders()">← Orders</button>
+    <button class="btn btn-green btn-sm" id="submitBtn" disabled onclick="submit()">✓ Submit Pick</button>
+  </div>
+</div>
+
+<!-- ═══ SCANNER ═══ -->
+<div class="scanner" id="scanner">
+  <div class="sc-hdr">
+    <div><h3 id="scTitle">Scan Labels</h3><div class="sc-phase" id="scPhase">Scan QR sticker</div></div>
+    <button class="btn btn-ghost btn-sm" onclick="closeScanner()">✓ Done</button>
+  </div>
+  <div class="sc-body">
+    <div class="sc-counter" id="scCount">Ready to scan</div>
+    <div class="sc-prompt">
+      <div class="ico" id="scIco">🏷️</div>
+      <div class="lbl" id="scLbl">Scan QR Sticker</div>
+      <div class="hint" id="scHint">Bluetooth scanner or type code</div>
+    </div>
+    <input class="sc-input" id="scIn" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="Scan or type..." onkeydown="if(event.key==='Enter'){event.preventDefault();doScan();}">
+    <button class="sc-go" id="scGo" onclick="doScan()">✓ Process</button>
+    <div class="sc-result" id="scRes"><div class="info">Waiting for scan...</div></div>
+    <div class="sc-bt"><b>Bluetooth Scanner</b><p>Pair a BT scanner with your phone — it types the code + Enter automatically. No camera needed.</p></div>
+    <div class="sc-hist" id="scHist"></div>
+  </div>
+</div>
+
+<input type="file" id="fIn" accept=".xlsx,.xlsm" style="display:none">
+
+<script>
+var wb=null,prods=[],orders=[],curOrder=null,lines=[],confirmed=new Set();
+var phase='sticker',tgt=-1,scanned=0,hist=[];
+
+function show(id){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active')});document.getElementById(id).classList.add('active')}
+function toast(m,ms,e){var t=document.getElementById('toast');t.textContent=m;t.className='toast show'+(e?' err':'');setTimeout(function(){t.className='toast'},ms||2500)}
+function dbg(m){var el=document.getElementById('debug');el.style.display='block';el.textContent+=m+'\n';el.scrollTop=el.scrollHeight}
+
+/* ══ FILE ══ */
+function pickFile(){
+  var inp=document.getElementById('fIn');
+  inp.onchange=function(e){
+    var f=e.target.files[0];if(!f)return;
+    document.getElementById('fileBadge').textContent=f.name;
+    var rd=new FileReader();
+    rd.onload=function(ev){
+      try{
+        wb=XLSX.read(ev.target.result,{type:'array'});
+        dbg('Sheets: '+(wb.SheetNames||[]).join(', '));
+        parse();
+        document.getElementById('dot').classList.add('on');
+        toast('Loaded — '+orders.length+' order(s)');
+        show('s-orders');
+      }catch(err){dbg('ERROR: '+err.message);toast('Load failed: '+err.message,4000,true)}
+    };
+    rd.readAsArrayBuffer(f);inp.value='';
+  };
+  inp.click();
+}
+
+/* ══ PARSE ══ */
+function parse(){
+  prods=[];orders=[];
+  var names=wb.SheetNames||Object.keys(wb.Sheets);
+
+  // Try MobilePick sheet first
+  var mp=null;
+  for(var i=0;i<names.length;i++){if(names[i]==='MobilePick'||names[i].toLowerCase()==='mobilepick'){mp=wb.Sheets[names[i]];break}}
+  if(!mp&&names.length===1){
+    var w1=wb.Sheets[names[0]];
+    var t1=XLSX.utils.sheet_to_json(w1,{defval:'',header:1});
+    if(t1.length>0&&String(t1[0][0])==='##PRODUCTS'){mp=w1;dbg('Sheet1 = MobilePick')}
+  }
+
+  if(mp){
+    dbg('Using MobilePick sheet');
+    var rows=XLSX.utils.sheet_to_json(mp,{defval:'',header:1});
+    var sec='',om={};
+    for(var ri=0;ri<rows.length;ri++){
+      var r=rows[ri],tag=String(r[0]||'');
+      if(tag==='##PRODUCTS'){sec='p';continue}
+      if(tag==='##ORDERS'){sec='o';continue}
+      if(sec==='p'&&tag==='P'){var sap=String(r[1]||'');if(sap)prods.push({sap:sap,desc:String(r[2]||''),bq:parseInt(r[3])||null})}
+      if(sec==='o'&&tag==='O'){
+        var oid=String(r[1]||''),key=oid||ri+'_'+String(r[3]||'');
+        if(!om[key])om[key]={id:oid,date:String(r[2]||''),cust:String(r[3]||''),loc:String(r[4]||''),lines:[]};
+        om[key].lines.push({desc:String(r[5]||''),batch:String(r[6]||''),qty:parseInt(r[7])||0,st:'Pending'});
+      }
+    }
+    dbg('Products: '+prods.length);
+    var ks=Object.keys(om);
+    for(var i=0;i<ks.length;i++){var o=om[ks[i]];for(var j=0;j<o.lines.length;j++){if(o.lines[j].st==='Pending'){orders.push(o);break}}}
+    dbg('Orders: '+orders.length);
+    renderOrders();
+    return;
+  }
+
+  // Fallback — full workbook parse
+  dbg('No MobilePick — trying Transaction');
+  function fs(){for(var i=0;i<arguments.length;i++){if(wb.Sheets[arguments[i]])return wb.Sheets[arguments[i]];for(var j=0;j<names.length;j++){if(names[j].toLowerCase()===arguments[i].toLowerCase())return wb.Sheets[names[j]]}}return null}
+  var ps=fs('Products'),ts=fs('Transaction');
+  if(ps){XLSX.utils.sheet_to_json(ps,{defval:''}).forEach(function(r){var s=r['Sap Code']||r['SAP Code']||'';if(s)prods.push({sap:String(s),desc:String(r['Description']||''),bq:parseInt(r['Box Qty'])||null})})}
+  if(!ts){dbg('ERROR: No data found');toast('Prepare workbook on desktop first',4000,true);renderOrders();return}
+  var tx=XLSX.utils.sheet_to_json(ts,{defval:''});
+  function gv(row){for(var i=1;i<arguments.length;i++){var k=arguments[i];if(row[k]!==undefined&&row[k]!=='')return String(row[k]).trim();var rk=Object.keys(row),kl=k.toLowerCase();for(var j=0;j<rk.length;j++){if(rk[j].trim().toLowerCase()===kl&&row[rk[j]]!==undefined&&row[rk[j]]!=='')return String(row[rk[j]]).trim()}}return''}
+  var om={};
+  tx.forEach(function(row){var dir=gv(row,'In or Out','Direction');if(dir!=='Out')return;var st=gv(row,'Status')||'Pending';if(st!=='Pending')return;var oid=gv(row,'Order ID','OrderID'),key=oid||Math.random();if(!om[key])om[key]={id:oid,date:gv(row,'Date'),cust:gv(row,'Customer'),loc:gv(row,'Location'),lines:[]};om[key].lines.push({desc:gv(row,'Description'),batch:gv(row,'Batch'),qty:parseInt(gv(row,'Qty','Quantity'))||0,st:'Pending'})});
+  var ks=Object.keys(om);for(var i=0;i<ks.length;i++)orders.push(om[ks[i]]);
+  dbg('Orders: '+orders.length);
+  renderOrders();
+}
+
+/* ══ ORDERS ══ */
+function renderOrders(){
+  var c=document.getElementById('orderList');
+  if(!orders.length){c.innerHTML='<div class="empty"><div class="icon">📋</div><p>No pending orders found.<br><br>Make sure you clicked "Prepare Workbook for Mobile Pick" on the desktop.</p></div>';return}
+  var h='';
+  for(var i=0;i<orders.length;i++){
+    var o=orders[i],n=o.lines.length;
+    h+='<div class="order-card" onclick="openOrder('+i+')"><div class="oc-top"><div class="oc-cust">'+o.cust+'</div><div class="oc-badge">'+n+' line'+(n>1?'s':'')+'</div></div><div class="oc-meta"><span>'+o.date+'</span><span>'+(o.id||'—')+'</span></div>';
+    // Show first 4 lines
+    h+='<div class="oc-lines">';
+    for(var j=0;j<Math.min(o.lines.length,4);j++){
+      var l=o.lines[j];
+      h+='<div class="oc-line"><span>'+l.desc+'</span><span>'+l.qty+'</span></div>';
+    }
+    if(o.lines.length>4)h+='<div class="oc-line"><span style="color:var(--dim)">+'+(o.lines.length-4)+' more...</span><span></span></div>';
+    h+='</div></div>';
+  }
+  c.innerHTML=h;
+}
+
+/* ══ PICK ══ */
+function openOrder(i){curOrder=orders[i];confirmed=new Set();buildLines();renderPick();show('s-pick')}
+function buildLines(){
+  var g={};
+  curOrder.lines.forEach(function(l){if(l.st!=='Pending')return;if(!g[l.desc])g[l.desc]={tot:0,batches:[],desc:l.desc};g[l.desc].tot+=l.qty;if(l.batch&&g[l.desc].batches.indexOf(l.batch)<0)g[l.desc].batches.push(l.batch)});
+  lines=[];
+  var ds=Object.keys(g);
+  for(var i=0;i<ds.length;i++){
+    var gr=g[ds[i]],p=null;
+    for(var j=0;j<prods.length;j++){if(prods[j].desc===gr.desc){p=prods[j];break}}
+    var bq=p?p.bq:null,sap=p?p.sap:'';
+    var nb=true;for(var k=0;k<gr.batches.length;k++){var bu=gr.batches[k].toUpperCase();if(bu!=='N/A'&&bu!=='NA'&&bu!==''&&bu!=='NONE')nb=false}
+    if(bq&&bq>0){
+      var full=Math.floor(gr.tot/bq),part=gr.tot%bq;
+      for(var fi=0;fi<full;fi++)lines.push({desc:gr.desc,sap:sap,lq:'FULL',nb:nb,stk:'',act:''});
+      if(part>0)lines.push({desc:gr.desc,sap:sap,lq:part+'pc',nb:nb,stk:'',act:''});
+    }else lines.push({desc:gr.desc,sap:sap,lq:String(gr.tot),nb:nb,stk:'',act:''});
+  }
+}
+function renderPick(){
+  document.getElementById('pickHdr').innerHTML='<h2>'+curOrder.cust+'</h2><div class="meta">'+(curOrder.id||'')+(curOrder.date?' · '+curOrder.date:'')+'</div>';
+  renderLines();updateProg();
+}
+function renderLines(){
+  var c=document.getElementById('pickLines'),h='';
+  for(var i=0;i<lines.length;i++){
+    var l=lines[i],d=confirmed.has(i);
+    if(d)h+='<div class="pl done"><div class="pl-top"><span class="pl-num">LINE '+(i+1)+'</span><span class="pl-qty">'+l.lq+'</span></div><div class="pl-desc">'+l.desc+'</div><div class="pl-ok">✓ Confirmed'+(l.act?' — '+l.act:'')+'</div></div>';
+    else h+='<div class="pl"><div class="pl-top"><span class="pl-num">LINE '+(i+1)+'</span><span class="pl-qty">'+l.lq+'</span></div><div class="pl-desc">'+l.desc+'</div></div>';
+  }
+  c.innerHTML=h;
+}
+function updateProg(){
+  var t=lines.length,d=confirmed.size;
+  document.getElementById('progFill').style.width=(t?d/t*100:0)+'%';
+  document.getElementById('progText').textContent=d===t?'All '+t+' lines confirmed ✓':d+' / '+t+' confirmed';
+  document.getElementById('submitBtn').disabled=d<t;
+  document.getElementById('scanBtn').style.display=d>=t?'none':'flex';
+}
+
+/* ══ MATCH ══ */
+function findLine(code){
+  var p=code.split(':');if(p.length<3||p[0]!=='MKPK')return-1;
+  var sap=p[1],ty=p[2];
+  for(var i=0;i<lines.length;i++){if(confirmed.has(i)||lines[i].sap!==sap)continue;var lq=lines[i].lq;if(ty==='FULL'&&lq==='FULL')return i;if(ty.indexOf('PART')===0&&lq===ty.substring(4)+'pc')return i;if(ty.indexOf('QTY')===0&&lq!=='FULL'&&lq.indexOf('pc')<0)return i}
+  for(var i=0;i<lines.length;i++){if(!confirmed.has(i)&&lines[i].sap===sap)return i}
+  return-1;
+}
+
+/* ══ SCANNER ══ */
+function openScanner(){
+  phase='sticker';tgt=-1;scanned=0;hist=[];
+  document.getElementById('scanner').classList.add('active');
+  updateSC();
+  setTimeout(function(){var el=document.getElementById('scIn');el.value='';el.focus()},100);
+}
+function closeScanner(){document.getElementById('scanner').classList.remove('active');renderLines();updateProg()}
+function doScan(){
+  var inp=document.getElementById('scIn'),val=inp.value.trim().toUpperCase();
+  if(!val)return;inp.value='';
+  var res=document.getElementById('scRes');
+  if(phase==='sticker'){
+    if(val.indexOf('MKPK:')===0){
+      var idx=findLine(val);
+      if(idx<0){res.innerHTML='<div class="warn">No matching line — try another label</div>';inp.focus();return}
+      lines[idx].stk=val;tgt=idx;phase='actual';
+      res.innerHTML='<div class="ok">✓ Line '+(idx+1)+' found</div><div class="prod">'+lines[idx].desc+' — '+lines[idx].lq+'</div><div class="info">Now scan the batch barcode</div>';
+      try{navigator.vibrate(80)}catch(e){}
+    }else res.innerHTML='<div class="warn">Expected MKPK:... sticker code</div>';
+  }else{
+    if(val.indexOf('MKPK:')===0){phase='sticker';inp.value=val;doScan();return}
+    if(tgt<0)return;
+    lines[tgt].act=val;confirmed.add(tgt);scanned++;
+    renderLines();updateProg();
+    hist.unshift({n:tgt+1,d:lines[tgt].desc,q:lines[tgt].lq,b:val});
+    try{navigator.vibrate([80,40,80])}catch(e){}
+    var rem=lines.length-confirmed.size;
+    phase='sticker';tgt=-1;
+    if(rem===0){res.innerHTML='<div class="ok" style="font-size:22px">🎉 All Done!</div>';setTimeout(function(){closeScanner();toast('All lines scanned!')},1500);return}
+    res.innerHTML='<div class="ok">✓ Confirmed — '+val+'</div><div class="info">'+rem+' remaining</div>';
+    renderHist();
+  }
+  updateSC();inp.focus();
+}
+function updateSC(){
+  var c=document.getElementById('scCount'),ico=document.getElementById('scIco'),lbl=document.getElementById('scLbl'),hint=document.getElementById('scHint'),inp=document.getElementById('scIn'),go=document.getElementById('scGo'),ti=document.getElementById('scTitle'),ph=document.getElementById('scPhase');
+  c.textContent=scanned>0?scanned+' scanned · '+(lines.length-confirmed.size)+' left':'Ready to scan';
+  if(phase==='sticker'){ico.textContent='🏷️';lbl.textContent='Scan QR Sticker';lbl.style.color='var(--teal)';hint.textContent='Bluetooth scanner or type MKPK code';inp.className='sc-input';go.className='sc-go';go.textContent='✓ Process Sticker';ti.textContent='Scan Labels';ph.textContent='Scan QR sticker label';ph.style.color='var(--teal)'}
+  else{var l=lines[tgt];ico.textContent='📊';lbl.textContent='Scan Batch Barcode';lbl.style.color='var(--gold)';hint.textContent='Line '+(tgt+1)+': '+(l?l.desc:'')+' — '+(l?l.lq:'');inp.className='sc-input batch';go.className='sc-go batch';go.textContent='✓ Process Batch';ti.textContent='Line '+(tgt+1);ph.textContent='Scan actual batch barcode';ph.style.color='var(--gold)'}
+}
+function renderHist(){
+  var c=document.getElementById('scHist');if(!hist.length){c.innerHTML='';return}
+  var h='<div class="sc-hist-title">Scan History</div>';
+  for(var i=0;i<Math.min(hist.length,6);i++)h+='<div class="sc-hist-item"><span class="l">Line '+hist[i].n+' · '+hist[i].d+'</span><span class="r">'+hist[i].b+'</span></div>';
+  c.innerHTML=h;
+}
+
+/* ══ SUBMIT ══ */
+function submit(){
+  if(confirmed.size<lines.length)return;
+  document.getElementById('pickLines').innerHTML='<div class="complete-card"><div class="big">✓</div><h3>Pick Complete</h3><p>'+curOrder.cust+' — '+confirmed.size+' lines confirmed</p></div><button class="btn btn-ghost btn-full btn-md" onclick="backOrders()" style="margin-top:12px">← Back to Orders</button>';
+  document.getElementById('pickNav').style.display='none';
+  document.getElementById('scanBtn').style.display='none';
+  toast('Pick complete!',3000);
+}
+function backOrders(){document.getElementById('pickNav').style.display='flex';renderOrders();show('s-orders')}
+function pickAll(){
+  if(!orders.length)return;
+  curOrder={id:'ALL ORDERS',date:'',cust:orders.length+' Orders Combined',loc:'',lines:[]};
+  for(var i=0;i<orders.length;i++)for(var j=0;j<orders[i].lines.length;j++)curOrder.lines.push(orders[i].lines[j]);
+  confirmed=new Set();buildLines();renderPick();show('s-pick');
+}
+
+/* ══ DEMO ══ */
+function loadDemo(){
+  prods=[{sap:'1035140',desc:'9m UT600',bq:66},{sap:'1024257',desc:'PH Booster 150g',bq:80},{sap:'1007621',desc:'Exel 18m #12',bq:40}];
+  orders=[{id:'ORD-DEMO-001',date:'06/03/2026',cust:'West Burleigh Quarry',loc:'B',lines:[{desc:'9m UT600',batch:'07JA26Q1',qty:98,st:'Pending'},{desc:'PH Booster 150g',batch:'15FE26A2',qty:240,st:'Pending'},{desc:'Exel 18m #12',batch:'3000509210',qty:120,st:'Pending'}]}];
+  document.getElementById('dot').classList.add('on');
+  document.getElementById('fileBadge').textContent='Demo';
+  toast('Demo loaded');renderOrders();show('s-orders');
+}
+</script>
+</body>
+</html>

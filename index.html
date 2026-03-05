@@ -223,14 +223,16 @@ body{font-family:-apple-system,'SF Pro Display','Segoe UI',Roboto,sans-serif;bac
 <input type="file" id="fIn" accept=".xlsx,.xlsm" style="display:none">
 
 <script>
-var wb=null,prods=[],orders=[],curOrder=null,lines=[],confirmed=new Set();
+var wb=null,prods=[],orders=[],curOrder=null,curOrderIdx=-1,lines=[],confirmed=new Set();
 var phase='sticker',tgt=-1,scanned=0,hist=[];
+var pickState={};
 
 function show(id){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active')});document.getElementById(id).classList.add('active')}
 function toast(m,ms,e){var t=document.getElementById('toast');t.textContent=m;t.className='toast show'+(e?' err':'');setTimeout(function(){t.className='toast'},ms||2500)}
 function dbg(m){var el=document.getElementById('debug');el.style.display='block';el.textContent+=m+'\n';el.scrollTop=el.scrollHeight}
+function orderKey(o){return o.id||o.cust+'_'+o.date}
 
-/* ══ FILE ══ */
+/* == FILE == */
 function pickFile(){
   var inp=document.getElementById('fIn');
   inp.onchange=function(e){
@@ -241,6 +243,7 @@ function pickFile(){
       try{
         wb=XLSX.read(ev.target.result,{type:'array'});
         dbg('Sheets: '+(wb.SheetNames||[]).join(', '));
+        pickState={};
         parse();
         document.getElementById('dot').classList.add('on');
         toast('Loaded — '+orders.length+' order(s)');
@@ -252,12 +255,10 @@ function pickFile(){
   inp.click();
 }
 
-/* ══ PARSE ══ */
+/* == PARSE == */
 function parse(){
   prods=[];orders=[];
   var names=wb.SheetNames||Object.keys(wb.Sheets);
-
-  // Try MobilePick sheet first
   var mp=null;
   for(var i=0;i<names.length;i++){if(names[i]==='MobilePick'||names[i].toLowerCase()==='mobilepick'){mp=wb.Sheets[names[i]];break}}
   if(!mp&&names.length===1){
@@ -265,7 +266,6 @@ function parse(){
     var t1=XLSX.utils.sheet_to_json(w1,{defval:'',header:1});
     if(t1.length>0&&String(t1[0][0])==='##PRODUCTS'){mp=w1;dbg('Sheet1 = MobilePick')}
   }
-
   if(mp){
     dbg('Using MobilePick sheet');
     var rows=XLSX.utils.sheet_to_json(mp,{defval:'',header:1});
@@ -274,6 +274,7 @@ function parse(){
       var r=rows[ri],tag=String(r[0]||'');
       if(tag==='##PRODUCTS'){sec='p';continue}
       if(tag==='##ORDERS'){sec='o';continue}
+      if(tag==='##PICKS')break;
       if(sec==='p'&&tag==='P'){var sap=String(r[1]||'');if(sap)prods.push({sap:sap,desc:String(r[2]||''),bq:parseInt(r[3])||null})}
       if(sec==='o'&&tag==='O'){
         var oid=String(r[1]||''),key=oid||ri+'_'+String(r[3]||'');
@@ -285,11 +286,8 @@ function parse(){
     var ks=Object.keys(om);
     for(var i=0;i<ks.length;i++){var o=om[ks[i]];for(var j=0;j<o.lines.length;j++){if(o.lines[j].st==='Pending'){orders.push(o);break}}}
     dbg('Orders: '+orders.length);
-    renderOrders();
-    return;
+    renderOrders();return;
   }
-
-  // Fallback — full workbook parse
   dbg('No MobilePick — trying Transaction');
   function fs(){for(var i=0;i<arguments.length;i++){if(wb.Sheets[arguments[i]])return wb.Sheets[arguments[i]];for(var j=0;j<names.length;j++){if(names[j].toLowerCase()===arguments[i].toLowerCase())return wb.Sheets[names[j]]}}return null}
   var ps=fs('Products'),ts=fs('Transaction');
@@ -300,32 +298,42 @@ function parse(){
   var om={};
   tx.forEach(function(row){var dir=gv(row,'In or Out','Direction');if(dir!=='Out')return;var st=gv(row,'Status')||'Pending';if(st!=='Pending')return;var oid=gv(row,'Order ID','OrderID'),key=oid||Math.random();if(!om[key])om[key]={id:oid,date:gv(row,'Date'),cust:gv(row,'Customer'),loc:gv(row,'Location'),lines:[]};om[key].lines.push({desc:gv(row,'Description'),batch:gv(row,'Batch'),qty:parseInt(gv(row,'Qty','Quantity'))||0,st:'Pending'})});
   var ks=Object.keys(om);for(var i=0;i<ks.length;i++)orders.push(om[ks[i]]);
-  dbg('Orders: '+orders.length);
-  renderOrders();
+  dbg('Orders: '+orders.length);renderOrders();
 }
 
-/* ══ ORDERS ══ */
+/* == ORDERS == */
 function renderOrders(){
   var c=document.getElementById('orderList');
-  if(!orders.length){c.innerHTML='<div class="empty"><div class="icon">📋</div><p>No pending orders found.<br><br>Make sure you clicked "Prepare Workbook for Mobile Pick" on the desktop.</p></div>';return}
+  if(!orders.length){c.innerHTML='<div class="empty"><div class="icon">📋</div><p>No pending orders found.<br><br>Make sure you clicked "Prepare Workbook" on the desktop.</p></div>';return}
   var h='';
   for(var i=0;i<orders.length;i++){
     var o=orders[i],n=o.lines.length;
-    h+='<div class="order-card" onclick="openOrder('+i+')"><div class="oc-top"><div class="oc-cust">'+o.cust+'</div><div class="oc-badge">'+n+' line'+(n>1?'s':'')+'</div></div><div class="oc-meta"><span>'+o.date+'</span><span>'+(o.id||'—')+'</span></div>';
-    // Show first 4 lines
+    var key=orderKey(o),ps=pickState[key];
+    var picked=ps?ps.confirmed.size:0,total=ps?ps.lines.length:0;
+    var badge='';
+    if(picked>0&&total>0)badge='<div class="oc-badge" style="background:rgba(36,168,112,.15);color:#24a870">'+picked+'/'+total+' Picked</div>';
+    else badge='<div class="oc-badge">'+n+' line'+(n>1?'s':'')+'</div>';
+    h+='<div class="order-card" onclick="openOrder('+i+')"><div class="oc-top"><div class="oc-cust">'+o.cust+'</div>'+badge+'</div><div class="oc-meta"><span>'+o.date+'</span><span>'+(o.id||'—')+'</span></div>';
     h+='<div class="oc-lines">';
-    for(var j=0;j<Math.min(o.lines.length,4);j++){
-      var l=o.lines[j];
-      h+='<div class="oc-line"><span>'+l.desc+'</span><span>'+l.qty+'</span></div>';
-    }
+    for(var j=0;j<Math.min(o.lines.length,4);j++)h+='<div class="oc-line"><span>'+o.lines[j].desc+'</span><span>'+o.lines[j].qty+'</span></div>';
     if(o.lines.length>4)h+='<div class="oc-line"><span style="color:var(--dim)">+'+(o.lines.length-4)+' more...</span><span></span></div>';
     h+='</div></div>';
   }
   c.innerHTML=h;
 }
 
-/* ══ PICK ══ */
-function openOrder(i){curOrder=orders[i];confirmed=new Set();buildLines();renderPick();show('s-pick')}
+/* == PICK == */
+function openOrder(i){
+  curOrder=orders[i];curOrderIdx=i;
+  var key=orderKey(curOrder);
+  if(pickState[key]){
+    lines=pickState[key].lines;confirmed=pickState[key].confirmed;hist=pickState[key].hist||[];scanned=confirmed.size;
+  }else{
+    confirmed=new Set();hist=[];scanned=0;buildLines();
+    pickState[key]={lines:lines,confirmed:confirmed,hist:hist};
+  }
+  renderPick();show('s-pick');
+}
 function buildLines(){
   var g={};
   curOrder.lines.forEach(function(l){if(l.st!=='Pending')return;if(!g[l.desc])g[l.desc]={tot:0,batches:[],desc:l.desc};g[l.desc].tot+=l.qty;if(l.batch&&g[l.desc].batches.indexOf(l.batch)<0)g[l.desc].batches.push(l.batch)});
@@ -345,6 +353,8 @@ function buildLines(){
 }
 function renderPick(){
   document.getElementById('pickHdr').innerHTML='<h2>'+curOrder.cust+'</h2><div class="meta">'+(curOrder.id||'')+(curOrder.date?' · '+curOrder.date:'')+'</div>';
+  document.getElementById('pickNav').style.display='flex';
+  document.getElementById('scanBtn').style.display='flex';
   renderLines();updateProg();
 }
 function renderLines(){
@@ -359,12 +369,19 @@ function renderLines(){
 function updateProg(){
   var t=lines.length,d=confirmed.size;
   document.getElementById('progFill').style.width=(t?d/t*100:0)+'%';
-  document.getElementById('progText').textContent=d===t?'All '+t+' lines confirmed ✓':d+' / '+t+' confirmed';
-  document.getElementById('submitBtn').disabled=d<t;
+  if(d===t)document.getElementById('progText').textContent='All '+t+' lines confirmed ✓';
+  else document.getElementById('progText').textContent=d+' / '+t+' confirmed — '+(t-d)+' remaining';
+  document.getElementById('submitBtn').disabled=d<1;
+  if(d>=t)document.getElementById('submitBtn').textContent='✓ Submit Pick';
+  else document.getElementById('submitBtn').textContent='✓ Submit ('+d+'/'+t+')';
   document.getElementById('scanBtn').style.display=d>=t?'none':'flex';
 }
+function saveState(){
+  if(!curOrder)return;
+  pickState[orderKey(curOrder)]={lines:lines,confirmed:confirmed,hist:hist};
+}
 
-/* ══ MATCH ══ */
+/* == MATCH == */
 function findLine(code){
   var p=code.split(':');if(p.length<3||p[0]!=='MKPK')return-1;
   var sap=p[1],ty=p[2];
@@ -373,14 +390,17 @@ function findLine(code){
   return-1;
 }
 
-/* ══ SCANNER ══ */
+/* == SCANNER == */
 function openScanner(){
-  phase='sticker';tgt=-1;scanned=0;hist=[];
+  phase='sticker';tgt=-1;scanned=confirmed.size;
   document.getElementById('scanner').classList.add('active');
   updateSC();
   setTimeout(function(){var el=document.getElementById('scIn');el.value='';el.focus()},100);
 }
-function closeScanner(){document.getElementById('scanner').classList.remove('active');renderLines();updateProg()}
+function closeScanner(){
+  document.getElementById('scanner').classList.remove('active');
+  saveState();renderLines();updateProg();
+}
 function doScan(){
   var inp=document.getElementById('scIn'),val=inp.value.trim().toUpperCase();
   if(!val)return;inp.value='';
@@ -388,7 +408,7 @@ function doScan(){
   if(phase==='sticker'){
     if(val.indexOf('MKPK:')===0){
       var idx=findLine(val);
-      if(idx<0){res.innerHTML='<div class="warn">No matching line — try another label</div>';inp.focus();return}
+      if(idx<0){res.innerHTML='<div class="warn">No matching line — try another</div>';inp.focus();return}
       lines[idx].stk=val;tgt=idx;phase='actual';
       res.innerHTML='<div class="ok">✓ Line '+(idx+1)+' found</div><div class="prod">'+lines[idx].desc+' — '+lines[idx].lq+'</div><div class="info">Now scan the batch barcode</div>';
       try{navigator.vibrate(80)}catch(e){}
@@ -396,13 +416,13 @@ function doScan(){
   }else{
     if(val.indexOf('MKPK:')===0){phase='sticker';inp.value=val;doScan();return}
     if(tgt<0)return;
-    lines[tgt].act=val;confirmed.add(tgt);scanned++;
-    renderLines();updateProg();
+    lines[tgt].act=val;confirmed.add(tgt);scanned=confirmed.size;
+    saveState();renderLines();updateProg();
     hist.unshift({n:tgt+1,d:lines[tgt].desc,q:lines[tgt].lq,b:val});
     try{navigator.vibrate([80,40,80])}catch(e){}
     var rem=lines.length-confirmed.size;
     phase='sticker';tgt=-1;
-    if(rem===0){res.innerHTML='<div class="ok" style="font-size:22px">🎉 All Done!</div>';setTimeout(function(){closeScanner();toast('All lines scanned!')},1500);return}
+    if(rem===0){res.innerHTML='<div class="ok" style="font-size:22px">🎉 All Done!</div><div class="info">Tap Done then Submit Pick</div>';updateSC();inp.focus();return}
     res.innerHTML='<div class="ok">✓ Confirmed — '+val+'</div><div class="info">'+rem+' remaining</div>';
     renderHist();
   }
@@ -410,7 +430,8 @@ function doScan(){
 }
 function updateSC(){
   var c=document.getElementById('scCount'),ico=document.getElementById('scIco'),lbl=document.getElementById('scLbl'),hint=document.getElementById('scHint'),inp=document.getElementById('scIn'),go=document.getElementById('scGo'),ti=document.getElementById('scTitle'),ph=document.getElementById('scPhase');
-  c.textContent=scanned>0?scanned+' scanned · '+(lines.length-confirmed.size)+' left':'Ready to scan';
+  var rem=lines.length-confirmed.size;
+  c.textContent=confirmed.size+' scanned · '+rem+' left';
   if(phase==='sticker'){ico.textContent='🏷️';lbl.textContent='Scan QR Sticker';lbl.style.color='var(--teal)';hint.textContent='Bluetooth scanner or type MKPK code';inp.className='sc-input';go.className='sc-go';go.textContent='✓ Process Sticker';ti.textContent='Scan Labels';ph.textContent='Scan QR sticker label';ph.style.color='var(--teal)'}
   else{var l=lines[tgt];ico.textContent='📊';lbl.textContent='Scan Batch Barcode';lbl.style.color='var(--gold)';hint.textContent='Line '+(tgt+1)+': '+(l?l.desc:'')+' — '+(l?l.lq:'');inp.className='sc-input batch';go.className='sc-go batch';go.textContent='✓ Process Batch';ti.textContent='Line '+(tgt+1);ph.textContent='Scan actual batch barcode';ph.style.color='var(--gold)'}
 }
@@ -421,10 +442,13 @@ function renderHist(){
   c.innerHTML=h;
 }
 
-/* ══ SUBMIT ══ */
+/* == SUBMIT == */
 function submit(){
-  if(confirmed.size<lines.length)return;
-  // Write pick results back to the MobilePick sheet
+  var d=confirmed.size,t=lines.length;
+  if(d<1){toast('Scan at least one line first',2000,true);return}
+  if(d<t){
+    if(!confirm('Warning: '+d+' of '+t+' lines scanned.\n\n'+(t-d)+' lines have NOT been scanned and will be skipped.\n\nDo you wish to continue and submit the partial pick?'))return;
+  }
   if(wb){
     try{
       var names=wb.SheetNames||Object.keys(wb.Sheets);
@@ -433,10 +457,8 @@ function submit(){
       if(!mpName&&names.length===1)mpName=names[0];
       if(mpName){
         var ws=wb.Sheets[mpName];
-        // Find the end of existing data
         var range=XLSX.utils.decode_range(ws['!ref']||'A1');
-        var nextRow=range.e.r+2; // leave a gap
-        // Write ##PICKS header
+        var nextRow=range.e.r+2;
         XLSX.utils.sheet_add_aoa(ws,[['##PICKS','OrderID','Description','LabelQty','StickerScan','ActualBatch','Confirmed','Timestamp']],{origin:{r:nextRow,c:0}});
         nextRow++;
         var ts=new Date().toLocaleString('en-AU');
@@ -446,12 +468,9 @@ function submit(){
           XLSX.utils.sheet_add_aoa(ws,[['PICK',curOrder.id||'',l.desc,l.lq,l.stk||'',l.act||'','Y',ts]],{origin:{r:nextRow,c:0}});
           nextRow++;
         }
-        // Update range
-        range.e.r=nextRow;
-        if(range.e.c<7)range.e.c=7;
+        range.e.r=nextRow;if(range.e.c<7)range.e.c=7;
         ws['!ref']=XLSX.utils.encode_range(range);
       }
-      // Generate and download
       var out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
       var blob=new Blob([out],{type:'application/octet-stream'});
       var a=document.createElement('a');
@@ -464,26 +483,38 @@ function submit(){
       toast('Save failed: '+err.message,4000,true);
     }
   }
-  document.getElementById('pickLines').innerHTML='<div class="complete-card"><div class="big">✓</div><h3>Pick Complete &amp; Saved</h3><p>'+curOrder.cust+' — '+confirmed.size+' lines</p><p style="margin-top:10px;font-size:12px;color:var(--gold)">File downloaded as MagKeeper_Picked.xlsx<br>Save it to OneDrive, then on desktop:<br>📱 Mobile Pick → Import Mobile Picks</p></div><button class="btn btn-ghost btn-full btn-md" onclick="backOrders()" style="margin-top:12px">← Back to Orders</button>';
+  var partial=d<t?' (partial — '+(t-d)+' not scanned)':'';
+  document.getElementById('pickLines').innerHTML='<div class="complete-card"><div class="big">✓</div><h3>Pick Submitted'+partial+'</h3><p>'+curOrder.cust+' — '+d+' of '+t+' lines</p><p style="margin-top:10px;font-size:12px;color:var(--gold)">File downloaded as MagKeeper_Picked.xlsx<br>Save to OneDrive, then on desktop:<br>📱 Mobile Pick → Import Mobile Picks</p></div><button class="btn btn-ghost btn-full btn-md" onclick="backOrders()" style="margin-top:12px">← Back to Orders</button>';
   document.getElementById('pickNav').style.display='none';
   document.getElementById('scanBtn').style.display='none';
+  delete pickState[orderKey(curOrder)];
 }
-function backOrders(){document.getElementById('pickNav').style.display='flex';renderOrders();show('s-orders')}
+function backOrders(){
+  saveState();
+  document.getElementById('pickNav').style.display='flex';
+  renderOrders();show('s-orders');
+}
 function pickAll(){
   if(!orders.length)return;
   curOrder={id:'ALL ORDERS',date:'',cust:orders.length+' Orders Combined',loc:'',lines:[]};
+  curOrderIdx=-1;
   for(var i=0;i<orders.length;i++)for(var j=0;j<orders[i].lines.length;j++)curOrder.lines.push(orders[i].lines[j]);
-  confirmed=new Set();buildLines();renderPick();show('s-pick');
+  var key=orderKey(curOrder);
+  if(pickState[key]){lines=pickState[key].lines;confirmed=pickState[key].confirmed;hist=pickState[key].hist||[];scanned=confirmed.size;}
+  else{confirmed=new Set();hist=[];scanned=0;buildLines();pickState[key]={lines:lines,confirmed:confirmed,hist:hist}}
+  renderPick();show('s-pick');
 }
 
-/* ══ DEMO ══ */
+/* == DEMO == */
 function loadDemo(){
   prods=[{sap:'1035140',desc:'9m UT600',bq:66},{sap:'1024257',desc:'PH Booster 150g',bq:80},{sap:'1007621',desc:'Exel 18m #12',bq:40}];
   orders=[{id:'ORD-DEMO-001',date:'06/03/2026',cust:'West Burleigh Quarry',loc:'B',lines:[{desc:'9m UT600',batch:'07JA26Q1',qty:98,st:'Pending'},{desc:'PH Booster 150g',batch:'15FE26A2',qty:240,st:'Pending'},{desc:'Exel 18m #12',batch:'3000509210',qty:120,st:'Pending'}]}];
+  pickState={};
   document.getElementById('dot').classList.add('on');
   document.getElementById('fileBadge').textContent='Demo';
   toast('Demo loaded');renderOrders();show('s-orders');
 }
+
 </script>
 </body>
 </html>

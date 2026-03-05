@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v4 -->
+<!-- v5 json -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -177,14 +177,14 @@ body{font-family:-apple-system,'SF Pro Display','Segoe UI',Roboto,sans-serif;bac
     <div class="load-icon">📦</div>
     <h2>Mobile Pick</h2>
     <div class="sub">Scan &amp; confirm order picks from your phone using a Bluetooth barcode scanner.</div>
-    <button class="btn btn-gold btn-lg btn-full" onclick="pickFile()">📂  Load Workbook</button>
+    <button class="btn btn-gold btn-lg btn-full" onclick="pickFile()">📂  Load Pick List</button>
     <div class="steps-box">
       <b>Before loading:</b><br>
       On the desktop, click 📱 Mobile Pick →<br>
       "Generate Pick List"<br><br>
-      <span class="step-num">1</span>Tap <b>Load Workbook</b> above<br>
+      <span class="step-num">1</span>Tap <b>Load Pick List</b> above<br>
       <span class="step-num">2</span>Browse to <b>OneDrive</b><br>
-      <span class="step-num">3</span>Select your <b>main MagKeeper workbook</b><br>
+      <span class="step-num">3</span>Select <b>MagKeeper_PickList.json</b><br>
       <span class="step-num">4</span>Scan labels → Submit → save back to OneDrive
     </div>
     <button class="btn btn-ghost btn-sm" onclick="loadDemo()">Try with demo data</button>
@@ -196,7 +196,7 @@ body{font-family:-apple-system,'SF Pro Display','Segoe UI',Roboto,sans-serif;bac
   <div class="section-hdr">Pending Orders</div>
   <div id="orderList"></div>
   <div class="bnav">
-    <button class="btn btn-ghost btn-sm" onclick="show('s-load')">← Workbook</button>
+    <button class="btn btn-ghost btn-sm" onclick="show('s-load')">← Pick List</button>
     <button class="btn btn-teal btn-sm" onclick="pickAll()">⚡ Pick All</button>
   </div>
 </div>
@@ -246,13 +246,14 @@ body{font-family:-apple-system,'SF Pro Display','Segoe UI',Roboto,sans-serif;bac
   </div>
 </div>
 
-<input type="file" id="fIn" accept=".xlsx,.xlsm" style="display:none">
+<input type="file" id="fIn" accept=".json,.xlsx,.xlsm" style="display:none">
 
 <script>
 var wb=null,prods=[],orders=[],curOrder=null,curOrderIdx=-1,lines=[],confirmed=new Set();
 var phase='sticker',tgt=-1,scanned=0,hist=[];
 var pickState={};
 var originalFileName='';
+var pickJSON=null; // stores the loaded JSON data
 
 function show(id){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active')});document.getElementById(id).classList.add('active')}
 function toast(m,ms,e){var t=document.getElementById('toast');t.textContent=m;t.className='toast show'+(e?' err':'');setTimeout(function(){t.className='toast'},ms||2500)}
@@ -266,25 +267,71 @@ function pickFile(){
     var f=e.target.files[0];if(!f)return;
     originalFileName=f.name;
     document.getElementById('fileBadge').textContent=f.name;
-    var rd=new FileReader();
-    rd.onload=function(ev){
-      try{
-        wb=XLSX.read(ev.target.result,{type:'array'});
-        dbg('Sheets: '+(wb.SheetNames||[]).join(', '));
-        pickState={};
-        parse();
-        document.getElementById('dot').classList.add('on');
-        toast('Loaded — '+orders.length+' order(s)');
-        show('s-orders');
-      }catch(err){dbg('ERROR: '+err.message);toast('Load failed: '+err.message,4000,true)}
-    };
-    rd.readAsArrayBuffer(f);inp.value='';
+
+    if(f.name.endsWith('.json')){
+      // JSON pick list — primary path
+      var rd=new FileReader();
+      rd.onload=function(ev){
+        try{
+          pickJSON=JSON.parse(ev.target.result);
+          dbg('JSON loaded: '+f.name);
+          parseJSON();
+          document.getElementById('dot').classList.add('on');
+          toast('Loaded — '+orders.length+' order(s)');
+          show('s-orders');
+        }catch(err){dbg('JSON error: '+err.message);toast('Invalid JSON: '+err.message,4000,true)}
+      };
+      rd.readAsText(f);
+    }else{
+      // xlsx fallback
+      var rd=new FileReader();
+      rd.onload=function(ev){
+        try{
+          wb=XLSX.read(ev.target.result,{type:'array'});
+          dbg('Sheets: '+(wb.SheetNames||[]).join(', '));
+          pickJSON=null;
+          parseXLSX();
+          document.getElementById('dot').classList.add('on');
+          toast('Loaded — '+orders.length+' order(s)');
+          show('s-orders');
+        }catch(err){dbg('XLSX error: '+err.message);toast('Load failed: '+err.message,4000,true)}
+      };
+      rd.readAsArrayBuffer(f);
+    }
+    inp.value='';
   };
   inp.click();
 }
 
-/* == PARSE == */
-function parse(){
+/* == PARSE JSON == */
+function parseJSON(){
+  prods=[];orders=[];pickState={};
+  if(!pickJSON){dbg('No JSON data');return}
+  // Products
+  var pl=pickJSON.products||[];
+  for(var i=0;i<pl.length;i++){
+    var p=pl[i];
+    prods.push({sap:String(p.sap||''),desc:String(p.desc||''),bq:parseInt(p.bq)||null});
+  }
+  dbg('Products: '+prods.length);
+  // Orders
+  var ol=pickJSON.orders||[];
+  for(var i=0;i<ol.length;i++){
+    var o=ol[i];
+    var order={id:String(o.id||''),date:String(o.date||''),cust:String(o.customer||''),loc:String(o.location||''),lines:[]};
+    var ll=o.lines||[];
+    for(var j=0;j<ll.length;j++){
+      var l=ll[j];
+      order.lines.push({desc:String(l.desc||''),batch:String(l.batch||''),qty:parseInt(l.qty)||0,st:'Pending'});
+    }
+    if(order.lines.length>0)orders.push(order);
+  }
+  dbg('Orders: '+orders.length);
+  renderOrders();
+}
+
+/* == PARSE XLSX (fallback) == */
+function parseXLSX(){
   prods=[];orders=[];
   var names=wb.SheetNames||Object.keys(wb.Sheets);
   var mp=null;
@@ -489,24 +536,22 @@ function submit(){
   if(d<t){
     if(!confirm('Warning: '+d+' of '+t+' lines scanned.\n\n'+(t-d)+' lines have NOT been scanned and will be skipped.\n\nDo you wish to continue and submit the partial pick?'))return;
   }
-  if(wb){
+  if(confirmed.size>0){
     try{
-      // Create a NEW clean workbook with just the pick results
-      var newWB=XLSX.utils.book_new();
-      var pickData=[['##PICKS','OrderID','Description','LabelQty','StickerScan','ActualBatch','Confirmed','Timestamp']];
+      // Build picks array
       var ts=new Date().toLocaleString('en-AU');
+      var picksArr=[];
       for(var i=0;i<lines.length;i++){
         if(!confirmed.has(i))continue;
         var l=lines[i];
-        pickData.push(['PICK',curOrder.id||'',l.desc,l.lq,l.stk||'',l.act||'','Y',ts]);
+        picksArr.push({order_id:curOrder.id||'',description:l.desc,label_qty:l.lq,sticker:l.stk||'',actual_batch:l.act||'',timestamp:ts});
       }
-      var pickSheet=XLSX.utils.aoa_to_sheet(pickData);
-      XLSX.utils.book_append_sheet(newWB,pickSheet,'PickResults');
-
-      var out=XLSX.write(newWB,{bookType:'xlsx',type:'array'});
-      var fname='MagKeeper_PickList.xlsx';
-      var blob=new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-      var file=new File([blob],fname,{type:blob.type});
+      // Create JSON with picks filled in
+      var saveData={version:1,generated:ts,picks:picksArr};
+      var jsonStr=JSON.stringify(saveData,null,2);
+      var fname='MagKeeper_PickList.json';
+      var blob=new Blob([jsonStr],{type:'application/json'});
+      var file=new File([blob],fname,{type:'application/json'});
       if(navigator.canShare&&navigator.canShare({files:[file]})){
         navigator.share({files:[file],title:'MagKeeper Picks'}).then(function(){
           toast('Saved!',2000);
@@ -526,7 +571,7 @@ function submit(){
     }
   }
   var partial=d<t?' (partial — '+(t-d)+' not scanned)':'';
-  document.getElementById('pickLines').innerHTML='<div class="complete-card"><div class="big">✓</div><h3>Pick Submitted'+partial+'</h3><p>'+curOrder.cust+' — '+d+' of '+t+' lines</p><p style="margin-top:10px;font-size:12px;color:var(--gold)">Save MagKeeper_PickList.xlsx to your<br>OneDrive folder (same place as workbook).<br><br>On desktop: 📱 Mobile Pick → Import Pick List</p></div><button class="btn btn-ghost btn-full btn-md" onclick="backOrders()" style="margin-top:12px">← Back to Orders</button>';
+  document.getElementById('pickLines').innerHTML='<div class="complete-card"><div class="big">✓</div><h3>Pick Submitted'+partial+'</h3><p>'+curOrder.cust+' — '+d+' of '+t+' lines</p><p style="margin-top:10px;font-size:12px;color:var(--gold)">Save MagKeeper_PickList.json to your<br>OneDrive folder (same place as workbook).<br><br>On desktop: 📱 Mobile Pick → Import Pick List</p></div><button class="btn btn-ghost btn-full btn-md" onclick="backOrders()" style="margin-top:12px">← Back to Orders</button>';
   document.getElementById('pickNav').style.display='none';
   document.getElementById('scanBtn').style.display='none';
   delete pickState[orderKey(curOrder)];

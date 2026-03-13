@@ -1,14 +1,13 @@
 <!DOCTYPE html>
-<!-- v7 hybrid -->
+<!-- MagKeeper Pro Mobile Scan v3 — QR-first, no pick list required -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="MagKeeper">
-<title>MagKeeper Pro — Mobile Pick</title>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<meta name="apple-mobile-web-app-title" content="MagKeeper Scan">
+<title>MagKeeper Pro — Mobile Scan</title>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <style>
 :root{
@@ -20,10 +19,11 @@
   --text:#e8eaf0;--text2:#c0c6d4;--dim:#6b7490;
   --border:#262b45;--border2:#333958;
   --gold-glow:rgba(232,135,44,.12);--green-glow:rgba(36,168,112,.12);
+  --red-glow:rgba(204,61,61,.12);
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html{background:var(--bg)}
-body{font-family:-apple-system,'SF Pro Display','Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;min-height:100dvh;-webkit-font-smoothing:antialiased}
+html,body{background:var(--bg);min-height:100vh;min-height:100dvh}
+body{font-family:-apple-system,'SF Pro Display','Segoe UI',Roboto,sans-serif;color:var(--text);-webkit-font-smoothing:antialiased}
 
 /* ── Top Bar ── */
 .topbar{background:var(--navy);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid var(--gold);position:sticky;top:0;z-index:100}
@@ -31,10 +31,9 @@ body{font-family:-apple-system,'SF Pro Display','Segoe UI',Roboto,sans-serif;bac
 .topbar-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--gold),var(--gold-dim));border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;color:white;letter-spacing:-.5px;box-shadow:0 2px 8px rgba(232,135,44,.3)}
 .topbar h1{font-size:19px;font-weight:800;letter-spacing:-.3px}
 .topbar h1 b{color:var(--gold)}
-.topbar-right{display:flex;align-items:center;gap:10px}
-.dot{width:9px;height:9px;border-radius:50%;background:var(--dim);transition:all .3s}
-.dot.on{background:var(--green);box-shadow:0 0 10px var(--green)}
-.file-badge{font-size:10px;color:var(--dim);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.session-pill{font-size:11px;font-weight:700;background:var(--green-bg);color:var(--green);border:1px solid var(--green);border-radius:20px;padding:3px 10px;display:none}
+.session-pill.on{display:block}
 
 /* ── Screens ── */
 .screen{display:none;padding:16px 16px 110px}
@@ -42,57 +41,31 @@ body{font-family:-apple-system,'SF Pro Display','Segoe UI',Roboto,sans-serif;bac
 
 /* ── Buttons ── */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;transition:all .12s;-webkit-appearance:none;letter-spacing:.2px}
-.btn:active{transform:scale(.97);filter:brightness(.92)}
+.btn:active{transform:scale(.97);filter:brightness(.88)}
 .btn-lg{padding:16px 28px;font-size:17px;border-radius:14px}
 .btn-md{padding:12px 22px}
 .btn-sm{padding:9px 16px;font-size:13px;border-radius:9px}
+.btn-xs{padding:6px 12px;font-size:12px;border-radius:8px}
 .btn-full{width:100%}
 .btn-gold{background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:white}
 .btn-green{background:linear-gradient(135deg,var(--green),var(--green-dim));color:white}
 .btn-teal{background:var(--teal);color:white}
 .btn-ghost{background:transparent;color:var(--dim);border:1.5px solid var(--border2)}
 .btn-danger{background:var(--red);color:white}
+.btn-danger-ghost{background:transparent;color:var(--red);border:1.5px solid rgba(204,61,61,.4)}
 
-/* ── Load Screen ── */
-.load-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:75vh;text-align:center;gap:22px;padding:0 8px}
-.load-icon{width:88px;height:88px;border-radius:22px;background:linear-gradient(135deg,var(--gold),var(--gold-dim));display:flex;align-items:center;justify-content:center;font-size:40px;box-shadow:0 10px 40px rgba(232,135,44,.25)}
-.load-wrap h2{font-size:24px;font-weight:800;letter-spacing:-.3px}
-.load-wrap .sub{color:var(--dim);font-size:13px;max-width:280px;line-height:1.6}
-.steps-box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 18px;text-align:left;font-size:13px;color:var(--text2);line-height:1.7;max-width:340px;width:100%}
-.steps-box b{color:var(--gold)}
-.steps-box .step-num{display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;border-radius:6px;background:var(--navy3);color:var(--gold);font-size:11px;font-weight:800;margin-right:6px}
-
-/* ── Order Cards ── */
-.section-hdr{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--dim);padding:6px 0;margin-top:10px}
-.order-card{background:var(--card);border-radius:14px;padding:16px;margin-bottom:10px;border:1px solid var(--border);cursor:pointer;transition:border-color .15s}
-.order-card:active{border-color:var(--gold);background:var(--card2)}
-.oc-top{display:flex;justify-content:space-between;align-items:center}
-.oc-cust{font-size:17px;font-weight:800}
-.oc-badge{padding:4px 10px;border-radius:8px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;background:rgba(240,192,64,.12);color:#f0c040}
-.oc-meta{display:flex;gap:18px;font-size:12px;color:var(--dim);margin-top:8px}
-.oc-lines{margin-top:10px;border-top:1px solid var(--border);padding-top:10px}
-.oc-line{display:flex;justify-content:space-between;font-size:13px;color:var(--text2);padding:3px 0}
-.oc-line span:last-child{color:var(--gold);font-weight:700;font-family:'SF Mono',monospace}
-
-/* ── Pick Screen ── */
-.pick-hdr{background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;border-left:4px solid var(--gold)}
-.pick-hdr h2{font-size:19px;font-weight:800}
-.pick-hdr .meta{font-size:12px;color:var(--dim);margin-top:4px}
-.prog-bar{background:var(--navy2);border-radius:8px;height:6px;margin:10px 0;overflow:hidden}
-.prog-fill{height:100%;background:linear-gradient(90deg,var(--green),#34d890);border-radius:8px;transition:width .4s ease}
-.prog-text{font-size:12px;color:var(--dim);text-align:center;margin-bottom:14px}
-.scan-big{width:100%;padding:18px;border:2px dashed var(--gold);border-radius:14px;background:var(--gold-glow);color:var(--gold);font-size:17px;font-weight:800;cursor:pointer;margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:10px;-webkit-appearance:none;letter-spacing:.3px}
-.scan-big:active{background:rgba(232,135,44,.2)}
-
-/* ── Pick Lines ── */
-.pl{background:var(--card);border-radius:12px;padding:14px 16px;margin-bottom:8px;border:1px solid var(--border);transition:all .25s}
-.pl.done{border-color:var(--green);background:var(--green-bg)}
-.pl-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
-.pl-num{font-size:10px;font-weight:800;color:var(--dim);background:var(--navy2);padding:2px 8px;border-radius:5px;letter-spacing:.5px}
-.pl-qty{font-size:14px;font-weight:900;color:var(--gold);font-family:'SF Mono',monospace}
-.pl-desc{font-size:15px;font-weight:700}
-.pl-batch{font-size:12px;color:var(--dim);margin-top:2px}
-.pl-ok{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:#6fe8a0;margin-top:8px}
+/* ── Home Screen ── */
+.home-wrap{display:flex;flex-direction:column;align-items:center;min-height:75vh;padding:30px 8px 0;gap:20px}
+.home-icon{width:96px;height:96px;border-radius:24px;background:linear-gradient(135deg,var(--gold),var(--gold-dim));display:flex;align-items:center;justify-content:center;font-size:46px;box-shadow:0 12px 40px rgba(232,135,44,.3)}
+.home-wrap h2{font-size:26px;font-weight:800;letter-spacing:-.4px;text-align:center}
+.home-wrap .sub{color:var(--dim);font-size:13px;text-align:center;max-width:280px;line-height:1.7}
+.session-card{width:100%;max-width:360px;background:var(--card);border:1.5px solid var(--green);border-radius:16px;padding:16px 18px}
+.session-card .sc-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--green);margin-bottom:10px}
+.session-card .sc-stat{display:flex;justify-content:space-between;font-size:13px;color:var(--text2);padding:3px 0}
+.session-card .sc-stat span:last-child{color:var(--gold);font-weight:700;font-family:'SF Mono',monospace}
+.how-box{width:100%;max-width:360px;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 18px;font-size:13px;color:var(--text2);line-height:1.8}
+.how-box b{color:var(--gold)}
+.step-num{display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;border-radius:6px;background:var(--navy3);color:var(--gold);font-size:11px;font-weight:800;margin-right:6px}
 
 /* ── Scanner Overlay ── */
 .scanner{display:none;position:fixed;inset:0;z-index:200;background:var(--bg);flex-direction:column}
@@ -100,60 +73,93 @@ body{font-family:-apple-system,'SF Pro Display','Segoe UI',Roboto,sans-serif;bac
 .sc-hdr{padding:14px 18px;background:var(--navy);display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid var(--teal)}
 .sc-hdr h3{font-size:16px;font-weight:800}
 .sc-phase{font-size:11px;font-weight:700;margin-top:2px;color:var(--teal);letter-spacing:.3px}
-.sc-body{flex:1;display:flex;flex-direction:column;padding:20px 18px;overflow-y:auto}
-.sc-counter{text-align:center;font-size:13px;color:var(--gold);font-weight:700;margin-bottom:18px;letter-spacing:.3px}
-.sc-prompt{text-align:center;margin-bottom:22px}
-.sc-prompt .ico{font-size:52px;margin-bottom:10px}
-.sc-prompt .lbl{font-size:22px;font-weight:900;margin-bottom:4px;letter-spacing:-.3px}
-.sc-prompt .hint{font-size:13px;color:var(--dim)}
-.sc-input{width:100%;padding:18px;font-size:21px;font-family:'SF Mono','Courier New',monospace;background:var(--navy);border:2.5px solid var(--teal);border-radius:14px;color:var(--text);outline:none;text-align:center;letter-spacing:1.5px}
-.sc-input:focus{border-color:var(--gold);box-shadow:0 0 24px rgba(232,135,44,.15)}
-.sc-input.batch{border-color:var(--gold)}
-.sc-go{width:100%;padding:16px;border:none;border-radius:13px;font-size:17px;font-weight:800;cursor:pointer;margin:14px 0;-webkit-appearance:none;background:var(--teal);color:white;letter-spacing:.3px}
-.sc-go:active{filter:brightness(.88)}
-.sc-go.batch{background:var(--gold)}
-.sc-result{background:var(--card);border-radius:12px;padding:16px;margin-bottom:14px;border:1px solid var(--border);text-align:center;min-height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center}
-.sc-result .ok{font-size:16px;font-weight:800;color:#6fe8a0}
-.sc-result .prod{font-size:15px;font-weight:700;color:var(--gold);margin:4px 0}
-.sc-result .info{font-size:12px;color:var(--dim)}
-.sc-result .warn{font-size:14px;color:var(--red);font-weight:700}
-.sc-hist{margin-top:auto}
-.sc-hist-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--dim);margin-bottom:6px}
-.sc-hist-item{display:flex;justify-content:space-between;padding:8px 12px;background:var(--green-bg);border-radius:8px;margin-bottom:4px;font-size:12px}
-.sc-hist-item .l{color:#6fe8a0;font-weight:700}
-.sc-hist-item .r{color:var(--dim);font-family:'SF Mono',monospace;font-size:11px}
-.sc-bt{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin:14px 0;text-align:center}
-.sc-bt b{color:var(--teal);font-size:12px}
-.sc-bt p{color:var(--dim);font-size:11px;margin-top:4px;line-height:1.5}
+.sc-body{flex:1;display:flex;flex-direction:column;padding:20px 18px;overflow-y:auto;gap:0}
+.sc-counter{text-align:center;font-size:13px;color:var(--gold);font-weight:700;margin-bottom:14px;letter-spacing:.3px}
 .sc-mode-bar{display:flex;gap:6px;margin-bottom:14px}
-.sc-mode-btn{flex:1;padding:10px;border:2px solid var(--border);border-radius:10px;background:transparent;color:var(--dim);font-size:13px;font-weight:700;cursor:pointer;text-align:center;-webkit-appearance:none}
+.sc-mode-btn{flex:1;padding:10px;border:2px solid var(--border);border-radius:10px;background:transparent;color:var(--dim);font-size:13px;font-weight:700;cursor:pointer;-webkit-appearance:none}
 .sc-mode-btn.active{border-color:var(--teal);color:var(--teal);background:rgba(46,135,212,.08)}
-.sc-mode-btn.active.cam-active{border-color:var(--gold);color:var(--gold);background:rgba(232,135,44,.08)}
+.sc-mode-btn.active.cam-mode{border-color:var(--gold);color:var(--gold);background:rgba(232,135,44,.08)}
+.sc-prompt{text-align:center;margin-bottom:18px}
+.sc-prompt .ico{font-size:48px;margin-bottom:8px;line-height:1}
+.sc-prompt .lbl{font-size:20px;font-weight:900;margin-bottom:4px;letter-spacing:-.3px}
+.sc-prompt .hint{font-size:13px;color:var(--dim);line-height:1.5}
 .cam-wrap{display:none;position:relative;width:100%;border-radius:14px;overflow:hidden;margin-bottom:12px;background:#000;aspect-ratio:4/3}
 .cam-wrap.on{display:block}
 .cam-wrap video{width:100%;height:100%;object-fit:cover}
 .cam-wrap canvas{display:none}
 .cam-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
-.cam-target{width:65%;height:65%;border:3px solid rgba(232,135,44,.6);border-radius:12px}
+.cam-target{width:65%;height:65%;border:3px solid rgba(232,135,44,.7);border-radius:12px;box-shadow:0 0 0 1000px rgba(0,0,0,.4)}
 .cam-status{position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:12px;font-weight:700;color:var(--gold);text-shadow:0 1px 4px rgba(0,0,0,.8)}
 .bt-section{display:block}
 .bt-section.hide{display:none}
+.sc-input{width:100%;padding:18px;font-size:20px;font-family:'SF Mono','Courier New',monospace;background:var(--navy);border:2.5px solid var(--teal);border-radius:14px;color:var(--text);outline:none;text-align:center;letter-spacing:1.5px;-webkit-appearance:none}
+.sc-input:focus{border-color:var(--gold);box-shadow:0 0 24px rgba(232,135,44,.15)}
+.sc-input.batch-mode{border-color:var(--gold)}
+.sc-input.unrecognised-mode{border-color:var(--red)}
+.sc-go{width:100%;padding:16px;border:none;border-radius:13px;font-size:17px;font-weight:800;cursor:pointer;margin:12px 0;-webkit-appearance:none;background:var(--teal);color:white;letter-spacing:.3px}
+.sc-go:active{filter:brightness(.88)}
+.sc-go.batch-go{background:var(--gold)}
+.sc-go.unrecognised-go{background:var(--red)}
+.sc-result{background:var(--card);border-radius:12px;padding:14px;margin-bottom:14px;border:1px solid var(--border);text-align:center;min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.sc-result .r-ok{font-size:15px;font-weight:800;color:#6fe8a0}
+.sc-result .r-prod{font-size:14px;font-weight:700;color:var(--gold)}
+.sc-result .r-info{font-size:12px;color:var(--dim)}
+.sc-result .r-warn{font-size:14px;color:var(--red);font-weight:700}
+.sc-result .r-flag{font-size:12px;color:var(--red);margin-top:2px}
+.sc-hist{margin-top:auto;padding-top:8px}
+.sc-hist-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--dim);margin-bottom:6px}
+.sc-hist-item{display:flex;justify-content:space-between;align-items:center;padding:7px 12px;background:var(--green-bg);border-radius:8px;margin-bottom:4px;font-size:12px}
+.sc-hist-item.flagged{background:var(--red-glow);border:1px solid rgba(204,61,61,.3)}
+.sc-hist-item .l{color:#6fe8a0;font-weight:700;font-size:11px}
+.sc-hist-item .l.fl{color:var(--red)}
+.sc-hist-item .r{color:var(--dim);font-family:'SF Mono',monospace;font-size:11px}
+.unrecognised-banner{background:var(--red-glow);border:1px solid rgba(204,61,61,.4);border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:12px;color:var(--text2);line-height:1.6;display:none}
+.unrecognised-banner.on{display:block}
+.unrecognised-banner b{color:var(--red)}
+
+/* ── Session Review Screen ── */
+.section-hdr{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--dim);padding:6px 0 8px;margin-top:8px}
+.order-group{background:var(--card);border-radius:14px;margin-bottom:10px;border:1px solid var(--border);overflow:hidden}
+.order-group-hdr{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;cursor:pointer;user-select:none}
+.order-group-hdr:active{background:var(--card2)}
+.og-left{display:flex;flex-direction:column;gap:3px}
+.og-title{font-size:15px;font-weight:800}
+.og-title.unrecognised{color:var(--red)}
+.og-meta{font-size:11px;color:var(--dim)}
+.og-badge{padding:3px 10px;border-radius:8px;font-size:10px;font-weight:800;background:rgba(36,168,112,.15);color:var(--green)}
+.og-badge.flag{background:var(--red-glow);color:var(--red)}
+.og-items{border-top:1px solid var(--border);display:none}
+.og-items.open{display:block}
+.scan-item{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid var(--border)}
+.scan-item:last-child{border-bottom:none}
+.si-left{display:flex;flex-direction:column;gap:2px}
+.si-sap{font-size:13px;font-weight:700;color:var(--text)}
+.si-batch{font-size:12px;color:var(--dim);font-family:'SF Mono',monospace}
+.si-flag{font-size:11px;color:var(--red);font-weight:600}
+.si-qty{font-size:13px;font-weight:800;color:var(--gold);font-family:'SF Mono',monospace}
+.si-del{background:transparent;border:none;color:var(--red);font-size:18px;cursor:pointer;padding:4px 8px;border-radius:6px;line-height:1}
+.si-del:active{background:var(--red-glow)}
 
 /* ── Bottom Nav ── */
 .bnav{position:fixed;bottom:0;left:0;right:0;background:var(--navy);border-top:1px solid var(--border);padding:10px 16px;padding-bottom:max(10px,env(safe-area-inset-bottom));display:flex;gap:8px;z-index:100}
 .bnav .btn{flex:1}
 
 /* ── Toast ── */
-.toast{position:fixed;top:72px;left:50%;transform:translateX(-50%) translateY(-20px);padding:12px 24px;border-radius:12px;font-size:14px;font-weight:700;opacity:0;transition:all .3s;z-index:300;pointer-events:none;white-space:nowrap;color:white;background:var(--green);box-shadow:0 6px 20px rgba(0,0,0,.3)}
+.toast{position:fixed;top:72px;left:50%;transform:translateX(-50%) translateY(-20px);padding:12px 24px;border-radius:12px;font-size:14px;font-weight:700;opacity:0;transition:all .3s;z-index:300;pointer-events:none;white-space:nowrap;color:white;background:var(--green);box-shadow:0 6px 20px rgba(0,0,0,.35)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .toast.err{background:var(--red)}
 .empty{text-align:center;padding:50px 20px;color:var(--dim)}
 .empty .icon{font-size:52px;margin-bottom:14px}
-.debug{display:none;background:var(--navy);color:var(--dim);font-size:10px;font-family:'SF Mono',monospace;padding:6px 14px;border-bottom:1px solid var(--border);white-space:pre-wrap;word-break:break-all;max-height:100px;overflow-y:auto}
+
+/* ── Misc ── */
+.submit-summary{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;font-size:13px;color:var(--text2)}
+.submit-summary .ss-row{display:flex;justify-content:space-between;padding:3px 0}
+.submit-summary .ss-row span:last-child{font-weight:700;color:var(--text);font-family:'SF Mono',monospace}
+.submit-summary .ss-flag{color:var(--red);font-weight:700}
 .complete-card{background:var(--green-bg);border:1.5px solid var(--green);border-radius:16px;padding:24px;text-align:center;margin:20px 0}
 .complete-card .big{font-size:52px;margin-bottom:10px}
 .complete-card h3{font-size:20px;color:#6fe8a0;font-weight:800}
-.complete-card p{font-size:13px;color:var(--dim);margin-top:8px}
+.complete-card p{font-size:13px;color:var(--dim);margin-top:8px;line-height:1.6}
 </style>
 </head>
 <body>
@@ -161,63 +167,70 @@ body{font-family:-apple-system,'SF Pro Display','Segoe UI',Roboto,sans-serif;bac
 <div class="topbar">
   <div class="topbar-logo">
     <div class="topbar-icon">MK</div>
-    <h1>MagKeeper <b>Pro</b></h1>
+    <h1>MagKeeper <b>Scan</b></h1>
   </div>
   <div class="topbar-right">
-    <div class="file-badge" id="fileBadge"></div>
-    <div class="dot" id="dot"></div>
+    <div class="session-pill" id="sessionPill">0 scanned</div>
   </div>
 </div>
-<div id="debug" class="debug"></div>
 <div class="toast" id="toast"></div>
 
-<!-- ═══ LOAD ═══ -->
-<div class="screen active" id="s-load">
-  <div class="load-wrap">
-    <div class="load-icon">📦</div>
-    <h2>Mobile Pick</h2>
-    <div class="sub">Scan &amp; confirm order picks from your phone using a Bluetooth barcode scanner.</div>
-    <button class="btn btn-gold btn-lg btn-full" onclick="pickFile()">📂  Load Workbook</button>
-    <div class="steps-box">
-      <b>Before loading:</b><br>
-      On the desktop, click 📱 Mobile Pick →<br>
-      "Prepare Workbook for Mobile Pick"<br><br>
-      <span class="step-num">1</span>Tap <b>Load Workbook</b> above<br>
-      <span class="step-num">2</span>Browse to <b>OneDrive</b><br>
-      <span class="step-num">3</span>Select your <b>main MagKeeper workbook</b><br>
-      <span class="step-num">4</span>Scan labels → Submit → saves JSON to OneDrive
+<!-- ═══ HOME ═══ -->
+<div class="screen active" id="s-home">
+  <div class="home-wrap">
+    <div class="home-icon">📦</div>
+    <h2>Mobile Scan</h2>
+    <div class="sub">Scan label QRs and batch barcodes from the magazine — no pick list needed.</div>
+
+    <div class="session-card" id="homeSessionCard" style="display:none">
+      <div class="sc-title">📋  Active Session</div>
+      <div class="sc-stat"><span>Scans collected</span><span id="homeCount">0</span></div>
+      <div class="sc-stat"><span>Orders covered</span><span id="homeOrders">0</span></div>
+      <div class="sc-stat" id="homeFlagRow" style="display:none"><span>Flagged (unrecognised)</span><span id="homeFlags" style="color:var(--red)">0</span></div>
     </div>
-    <button class="btn btn-ghost btn-sm" onclick="loadDemo()">Try with demo data</button>
+
+    <button class="btn btn-gold btn-lg btn-full" style="max-width:360px" onclick="openScanner()">
+      ⚡  Start Scanning
+    </button>
+    <button class="btn btn-teal btn-md btn-full" style="max-width:360px;display:none" id="btnReview" onclick="show('s-review')">
+      📋  Review &amp; Submit Session
+    </button>
+    <button class="btn btn-ghost btn-sm" style="max-width:360px" id="btnClear" onclick="clearSession()" style="display:none">
+      🗑  Clear Session
+    </button>
+
+    <div class="how-box">
+      <b>How it works:</b><br>
+      <span class="step-num">1</span>Tap <b>Start Scanning</b><br>
+      <span class="step-num">2</span>Scan the <b>QR label</b> on a box<br>
+      <span class="step-num">3</span>Scan the <b>batch barcode</b> on the same box<br>
+      <span class="step-num">4</span>Repeat for all boxes being picked<br>
+      <span class="step-num">5</span>Tap <b>Review &amp; Submit</b> → save JSON to OneDrive<br>
+      <span class="step-num">6</span>Desktop: <b>Pick/Deliver → Import Mobile Scan</b>
+    </div>
   </div>
 </div>
 
-<!-- ═══ ORDERS ═══ -->
-<div class="screen" id="s-orders">
-  <div class="section-hdr">Pending Orders</div>
-  <div id="orderList"></div>
+<!-- ═══ REVIEW ═══ -->
+<div class="screen" id="s-review">
+  <div class="section-hdr">Session Summary</div>
+  <div class="submit-summary" id="submitSummary"></div>
+  <div class="section-hdr">Scans by Order</div>
+  <div id="reviewList"></div>
   <div class="bnav">
-    <button class="btn btn-ghost btn-sm" onclick="show('s-load')">← Workbook</button>
-    <button class="btn btn-teal btn-sm" onclick="pickAll()">⚡ Pick All</button>
-  </div>
-</div>
-
-<!-- ═══ PICK ═══ -->
-<div class="screen" id="s-pick">
-  <div class="pick-hdr" id="pickHdr"></div>
-  <div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
-  <div class="prog-text" id="progText"></div>
-  <button class="scan-big" id="scanBtn" onclick="openScanner()">⚡  Scan Labels</button>
-  <div id="pickLines"></div>
-  <div class="bnav" id="pickNav">
-    <button class="btn btn-ghost btn-sm" onclick="backOrders()">← Orders</button>
-    <button class="btn btn-green btn-sm" id="submitBtn" disabled onclick="submit()">✓ Submit Pick</button>
+    <button class="btn btn-ghost btn-sm" onclick="show('s-home')">← Home</button>
+    <button class="btn btn-teal btn-sm" onclick="openScanner()">⚡ More Scans</button>
+    <button class="btn btn-green btn-sm" id="submitBtn" onclick="submitSession()">✓ Submit</button>
   </div>
 </div>
 
 <!-- ═══ SCANNER ═══ -->
 <div class="scanner" id="scanner">
   <div class="sc-hdr">
-    <div><h3 id="scTitle">Scan Labels</h3><div class="sc-phase" id="scPhase">Scan QR sticker</div></div>
+    <div>
+      <h3 id="scTitle">Scan Label</h3>
+      <div class="sc-phase" id="scPhase">Scan QR code on label</div>
+    </div>
     <button class="btn btn-ghost btn-sm" onclick="closeScanner()">✓ Done</button>
   </div>
   <div class="sc-body">
@@ -228,8 +241,8 @@ body{font-family:-apple-system,'SF Pro Display','Segoe UI',Roboto,sans-serif;bac
     </div>
     <div class="sc-prompt">
       <div class="ico" id="scIco">🏷️</div>
-      <div class="lbl" id="scLbl">Scan QR Sticker</div>
-      <div class="hint" id="scHint">Bluetooth scanner or type code</div>
+      <div class="lbl" id="scLbl">Scan QR Label</div>
+      <div class="hint" id="scHint">Bluetooth scanner or type below</div>
     </div>
     <div class="cam-wrap" id="camWrap">
       <video id="camVideo" playsinline autoplay muted></video>
@@ -237,449 +250,571 @@ body{font-family:-apple-system,'SF Pro Display','Segoe UI',Roboto,sans-serif;bac
       <div class="cam-overlay"><div class="cam-target"></div></div>
       <div class="cam-status" id="camStatus">Point at QR code or barcode...</div>
     </div>
+    <div class="unrecognised-banner" id="unrecBanner">
+      <b>⚠ Unrecognised QR code</b><br>
+      This code doesn't match the expected format. It will be included in the export and flagged for manual matching on the desktop.<br>
+      Scan the batch barcode below to continue, or scan a new QR to try again.
+    </div>
     <div class="bt-section" id="btSection">
       <input class="sc-input" id="scIn" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="Scan or type..." onkeydown="if(event.key==='Enter'){event.preventDefault();doScan();}">
       <button class="sc-go" id="scGo" onclick="doScan()">✓ Process</button>
     </div>
-    <div class="sc-result" id="scRes"><div class="info">Waiting for scan...</div></div>
+    <div class="sc-result" id="scRes"><div class="r-info">Waiting for first scan...</div></div>
     <div class="sc-hist" id="scHist"></div>
   </div>
 </div>
 
-<input type="file" id="fIn" accept=".xlsx,.xlsm" style="display:none">
-
 <script>
-var wb=null,prods=[],orders=[],curOrder=null,curOrderIdx=-1,lines=[],confirmed=new Set();
-var phase='sticker',tgt=-1,scanned=0,hist=[];
-var pickState={};
-var originalFileName='';
+// ─── State ───────────────────────────────────────────────────────────────────
+var session = [];          // Array of completed scan pairs
+var phase   = 'qr';       // 'qr' | 'batch'
+var currentQR = null;     // { order_id, sap_code, qty_type, raw, unrecognised }
+var scanMode  = 'bt';
+var camStream = null;
+var camAnimId = null;
+var lastCamCode = '';
+var camCooldown = false;
+var SESSION_KEY = 'mk_scan_session_v2';
 
-function show(id){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active')});document.getElementById(id).classList.add('active')}
-function toast(m,ms,e){var t=document.getElementById('toast');t.textContent=m;t.className='toast show'+(e?' err':'');setTimeout(function(){t.className='toast'},ms||2500)}
-function dbg(m){var el=document.getElementById('debug');el.style.display='block';el.textContent+=m+'\n';el.scrollTop=el.scrollHeight}
-function orderKey(o){return o.id||o.cust+'_'+o.date}
+// ─── Persistence ─────────────────────────────────────────────────────────────
+function saveSession() {
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch(e) {}
+}
+function loadSession() {
+  try {
+    var s = localStorage.getItem(SESSION_KEY);
+    if (s) { session = JSON.parse(s); }
+  } catch(e) { session = []; }
+}
 
-/* == FILE == */
-function pickFile(){
-  var inp=document.getElementById('fIn');
-  inp.onchange=function(e){
-    var f=e.target.files[0];if(!f)return;
-    originalFileName=f.name;
-    document.getElementById('fileBadge').textContent=f.name;
-    var rd=new FileReader();
-    rd.onload=function(ev){
-      try{
-        wb=XLSX.read(ev.target.result,{type:'array'});
-        dbg('Sheets: '+(wb.SheetNames||[]).join(', '));
-        pickState={};
-        parseXLSX();
-        document.getElementById('dot').classList.add('on');
-        toast('Loaded — '+orders.length+' order(s)');
-        show('s-orders');
-      }catch(err){dbg('XLSX error: '+err.message);toast('Load failed: '+err.message,4000,true)}
+// ─── Utilities ───────────────────────────────────────────────────────────────
+function show(id) {
+  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
+  document.getElementById(id).classList.add('active');
+  if (id === 's-review') renderReview();
+  if (id === 's-home')   updateHomeUI();
+}
+function toast(msg, ms, err) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (err ? ' err' : '');
+  setTimeout(function(){ t.className = 'toast'; }, ms || 2500);
+}
+function vibe(pattern) {
+  try { navigator.vibrate(pattern); } catch(e) {}
+}
+
+// ─── Parse QR code ────────────────────────────────────────────────────────────
+// Expected: MKPK:{order_id}:{sap_code}:{qty_type}
+// Legacy:   MKPK:{sap_code}:{qty_type}  (2-part, no order_id)
+function parseQR(raw) {
+  var s = raw.trim().toUpperCase();
+  if (s.indexOf('MKPK:') !== 0) return null; // not a MagKeeper QR
+
+  var parts = s.split(':');
+  // parts[0] = 'MKPK'
+  if (parts.length >= 4) {
+    // New format: MKPK:order_id:sap:qty_type
+    return {
+      order_id:  parts[1],
+      sap_code:  parts[2],
+      qty_type:  parts.slice(3).join(':'),
+      raw:       s,
+      unrecognised: false
     };
-    rd.readAsArrayBuffer(f);
-    inp.value='';
-  };
-  inp.click();
+  }
+  if (parts.length === 3) {
+    // Legacy format: MKPK:sap:qty_type — no order_id available
+    return {
+      order_id:  '',
+      sap_code:  parts[1],
+      qty_type:  parts[2],
+      raw:       s,
+      unrecognised: false,
+      legacy:    true
+    };
+  }
+  return null; // malformed MKPK
 }
 
-/* == PARSE XLSX == */
-function parseXLSX(){
-  prods=[];orders=[];
-  var names=wb.SheetNames||Object.keys(wb.Sheets);
-  var mp=null;
-  // Check every sheet for ##PRODUCTS marker — handles any iOS renaming
-  for(var i=0;i<names.length;i++){
-    var ws=wb.Sheets[names[i]];
-    var t1=XLSX.utils.sheet_to_json(ws,{defval:'',header:1});
-    dbg('Sheet "'+names[i]+'": '+t1.length+' rows, first cell: '+JSON.stringify(t1.length>0?t1[0][0]:'empty'));
-    if(t1.length>0){
-      var fc=String(t1[0][0]||'').trim();
-      if(fc==='##PRODUCTS'||fc.indexOf('##PRODUCT')===0||fc.indexOf('PRODUCTS')>=0){
-        mp=ws;dbg('Found PickList data in: '+names[i]);break;
-      }
-    }
-  }
-  if(mp){
-    dbg('Using MobilePick sheet');
-    var rows=XLSX.utils.sheet_to_json(mp,{defval:'',header:1});
-    var sec='',om={};
-    for(var ri=0;ri<rows.length;ri++){
-      var r=rows[ri],tag=String(r[0]||'');
-      if(tag==='##PRODUCTS'){sec='p';continue}
-      if(tag==='##ORDERS'){sec='o';continue}
-      if(tag==='##PICKS')break;
-      if(sec==='p'&&tag==='P'){var sap=String(r[1]||'');if(sap)prods.push({sap:sap,desc:String(r[2]||''),bq:parseInt(r[3])||null})}
-      if(sec==='o'&&tag==='O'){
-        var oid=String(r[1]||''),key=oid||ri+'_'+String(r[3]||'');
-        if(!om[key])om[key]={id:oid,date:String(r[2]||''),cust:String(r[3]||''),loc:String(r[4]||''),lines:[]};
-        om[key].lines.push({desc:String(r[5]||''),batch:String(r[6]||''),qty:parseInt(r[7])||0,st:'Pending'});
-      }
-    }
-    dbg('Products: '+prods.length);
-    var ks=Object.keys(om);
-    for(var i=0;i<ks.length;i++){var o=om[ks[i]];for(var j=0;j<o.lines.length;j++){if(o.lines[j].st==='Pending'){orders.push(o);break}}}
-    dbg('Orders: '+orders.length);
-    renderOrders();return;
-  }
-  dbg('No MobilePick — trying Transaction');
-  function fs(){for(var i=0;i<arguments.length;i++){if(wb.Sheets[arguments[i]])return wb.Sheets[arguments[i]];for(var j=0;j<names.length;j++){if(names[j].toLowerCase()===arguments[i].toLowerCase())return wb.Sheets[names[j]]}}return null}
-  var ps=fs('Products'),ts=fs('Transaction');
-  if(ps){XLSX.utils.sheet_to_json(ps,{defval:''}).forEach(function(r){var s=r['Sap Code']||r['SAP Code']||'';if(s)prods.push({sap:String(s),desc:String(r['Description']||''),bq:parseInt(r['Box Qty'])||null})})}
-  if(!ts){dbg('ERROR: No data found');toast('Prepare workbook on desktop first',4000,true);renderOrders();return}
-  var tx=XLSX.utils.sheet_to_json(ts,{defval:''});
-  function gv(row){for(var i=1;i<arguments.length;i++){var k=arguments[i];if(row[k]!==undefined&&row[k]!=='')return String(row[k]).trim();var rk=Object.keys(row),kl=k.toLowerCase();for(var j=0;j<rk.length;j++){if(rk[j].trim().toLowerCase()===kl&&row[rk[j]]!==undefined&&row[rk[j]]!=='')return String(row[rk[j]]).trim()}}return''}
-  var om={};
-  tx.forEach(function(row){var dir=gv(row,'In or Out','Direction');if(dir!=='Out')return;var st=gv(row,'Status')||'Pending';if(st!=='Pending')return;var oid=gv(row,'Order ID','OrderID'),key=oid||Math.random();if(!om[key])om[key]={id:oid,date:gv(row,'Date'),cust:gv(row,'Customer'),loc:gv(row,'Location'),lines:[]};om[key].lines.push({desc:gv(row,'Description'),batch:gv(row,'Batch'),qty:parseInt(gv(row,'Qty','Quantity'))||0,st:'Pending'})});
-  var ks=Object.keys(om);for(var i=0;i<ks.length;i++)orders.push(om[ks[i]]);
-  dbg('Orders: '+orders.length);renderOrders();
-}
-
-/* == ORDERS == */
-function renderOrders(){
-  var c=document.getElementById('orderList');
-  if(!orders.length){c.innerHTML='<div class="empty"><div class="icon">📋</div><p>No pending orders found.<br><br>Make sure you clicked "Prepare Workbook for Mobile Pick" on the desktop.</p></div>';return}
-  var h='';
-  for(var i=0;i<orders.length;i++){
-    var o=orders[i],n=o.lines.length;
-    var key=orderKey(o),ps=pickState[key];
-    var picked=ps?ps.confirmed.size:0,total=ps?ps.lines.length:0;
-    var badge='';
-    if(picked>0&&total>0)badge='<div class="oc-badge" style="background:rgba(36,168,112,.15);color:#24a870">'+picked+'/'+total+' Picked</div>';
-    else badge='<div class="oc-badge">'+n+' line'+(n>1?'s':'')+'</div>';
-    h+='<div class="order-card" onclick="openOrder('+i+')"><div class="oc-top"><div class="oc-cust">'+o.cust+'</div>'+badge+'</div><div class="oc-meta"><span>'+o.date+'</span><span>'+(o.id||'—')+'</span></div>';
-    h+='<div class="oc-lines">';
-    for(var j=0;j<Math.min(o.lines.length,4);j++)h+='<div class="oc-line"><span>'+o.lines[j].desc+'</span><span>'+o.lines[j].qty+'</span></div>';
-    if(o.lines.length>4)h+='<div class="oc-line"><span style="color:var(--dim)">+'+(o.lines.length-4)+' more...</span><span></span></div>';
-    h+='</div></div>';
-  }
-  c.innerHTML=h;
-}
-
-/* == PICK == */
-function openOrder(i){
-  curOrder=orders[i];curOrderIdx=i;
-  var key=orderKey(curOrder);
-  if(pickState[key]){
-    lines=pickState[key].lines;confirmed=pickState[key].confirmed;hist=pickState[key].hist||[];scanned=confirmed.size;
-  }else{
-    confirmed=new Set();hist=[];scanned=0;buildLines();
-    pickState[key]={lines:lines,confirmed:confirmed,hist:hist};
-  }
-  renderPick();show('s-pick');
-}
-function buildLines(){
-  var g={};
-  curOrder.lines.forEach(function(l){if(l.st!=='Pending')return;if(!g[l.desc])g[l.desc]={tot:0,batches:[],desc:l.desc};g[l.desc].tot+=l.qty;if(l.batch&&g[l.desc].batches.indexOf(l.batch)<0)g[l.desc].batches.push(l.batch)});
-  lines=[];
-  var ds=Object.keys(g);
-  for(var i=0;i<ds.length;i++){
-    var gr=g[ds[i]],p=null;
-    for(var j=0;j<prods.length;j++){if(prods[j].desc===gr.desc){p=prods[j];break}}
-    var bq=p?p.bq:null,sap=p?p.sap:'';
-    var nb=true;for(var k=0;k<gr.batches.length;k++){var bu=gr.batches[k].toUpperCase();if(bu!=='N/A'&&bu!=='NA'&&bu!==''&&bu!=='NONE')nb=false}
-    if(bq&&bq>0){
-      var full=Math.floor(gr.tot/bq),part=gr.tot%bq;
-      for(var fi=0;fi<full;fi++)lines.push({desc:gr.desc,sap:sap,lq:'FULL',nb:nb,stk:'',act:''});
-      if(part>0)lines.push({desc:gr.desc,sap:sap,lq:part+'pc',nb:nb,stk:'',act:''});
-    }else lines.push({desc:gr.desc,sap:sap,lq:String(gr.tot),nb:nb,stk:'',act:''});
-  }
-}
-function renderPick(){
-  document.getElementById('pickHdr').innerHTML='<h2>'+curOrder.cust+'</h2><div class="meta">'+(curOrder.id||'')+(curOrder.date?' · '+curOrder.date:'')+'</div>';
-  document.getElementById('pickNav').style.display='flex';
-  document.getElementById('scanBtn').style.display='flex';
-  renderLines();updateProg();
-}
-function renderLines(){
-  var c=document.getElementById('pickLines'),h='';
-  for(var i=0;i<lines.length;i++){
-    var l=lines[i],d=confirmed.has(i);
-    if(d)h+='<div class="pl done"><div class="pl-top"><span class="pl-num">LINE '+(i+1)+'</span><span class="pl-qty">'+l.lq+'</span></div><div class="pl-desc">'+l.desc+'</div><div class="pl-ok">✓ Confirmed'+(l.act?' — '+l.act:'')+'</div></div>';
-    else h+='<div class="pl"><div class="pl-top"><span class="pl-num">LINE '+(i+1)+'</span><span class="pl-qty">'+l.lq+'</span></div><div class="pl-desc">'+l.desc+'</div></div>';
-  }
-  c.innerHTML=h;
-}
-function updateProg(){
-  var t=lines.length,d=confirmed.size;
-  document.getElementById('progFill').style.width=(t?d/t*100:0)+'%';
-  if(d===t)document.getElementById('progText').textContent='All '+t+' lines confirmed ✓';
-  else document.getElementById('progText').textContent=d+' / '+t+' confirmed — '+(t-d)+' remaining';
-  document.getElementById('submitBtn').disabled=d<1;
-  if(d>=t)document.getElementById('submitBtn').textContent='✓ Submit Pick';
-  else document.getElementById('submitBtn').textContent='✓ Submit ('+d+'/'+t+')';
-  document.getElementById('scanBtn').style.display=d>=t?'none':'flex';
-}
-function saveState(){
-  if(!curOrder)return;
-  pickState[orderKey(curOrder)]={lines:lines,confirmed:confirmed,hist:hist};
-}
-
-/* == MATCH == */
-function findLine(code){
-  var p=code.split(':');if(p.length<3||p[0]!=='MKPK')return-1;
-  var sap=p[1],ty=p[2];
-  for(var i=0;i<lines.length;i++){if(confirmed.has(i)||lines[i].sap!==sap)continue;var lq=lines[i].lq;if(ty==='FULL'&&lq==='FULL')return i;if(ty.indexOf('PART')===0&&lq===ty.substring(4)+'pc')return i;if(ty.indexOf('QTY')===0&&lq!=='FULL'&&lq.indexOf('pc')<0)return i}
-  for(var i=0;i<lines.length;i++){if(!confirmed.has(i)&&lines[i].sap===sap)return i}
-  return-1;
-}
-
-/* == SCANNER == */
-function openScanner(){
-  phase='sticker';tgt=-1;scanned=confirmed.size;
-  scanMode='bt';
-  document.getElementById('modeBT').className='sc-mode-btn active';
-  document.getElementById('modeCam').className='sc-mode-btn';
-  document.getElementById('btSection').className='bt-section';
-  document.getElementById('camWrap').className='cam-wrap';
+// ─── Scanner ─────────────────────────────────────────────────────────────────
+function openScanner() {
+  phase = 'qr';
+  currentQR = null;
+  setScanMode('bt');
   document.getElementById('scanner').classList.add('active');
-  updateSC();
-  setTimeout(function(){var el=document.getElementById('scIn');el.value='';el.focus()},100);
+  document.getElementById('unrecBanner').className = 'unrecognised-banner';
+  updateScannerUI();
+  setTimeout(function(){ focusInput(); }, 100);
 }
-function closeScanner(){
-  stopCam();scanMode='bt';
+function closeScanner() {
+  stopCam();
   document.getElementById('scanner').classList.remove('active');
-  saveState();renderLines();updateProg();
+  updateHomeUI();
 }
-function doScan(){
-  var inp=document.getElementById('scIn'),val=inp.value.trim().toUpperCase();
-  if(!val)return;inp.value='';
-  var res=document.getElementById('scRes');
-  if(phase==='sticker'){
-    if(val.indexOf('MKPK:')===0){
-      var idx=findLine(val);
-      if(idx<0){res.innerHTML='<div class="warn">No matching line — try another</div>';inp.focus();return}
-      lines[idx].stk=val;tgt=idx;phase='actual';
-      res.innerHTML='<div class="ok">✓ Line '+(idx+1)+' found</div><div class="prod">'+lines[idx].desc+' — '+lines[idx].lq+'</div><div class="info">Now scan the batch barcode</div>';
-      try{navigator.vibrate(80)}catch(e){}
-    }else res.innerHTML='<div class="warn">Expected MKPK:... sticker code</div>';
-  }else{
-    if(val.indexOf('MKPK:')===0){phase='sticker';inp.value=val;doScan();return}
-    if(tgt<0)return;
-    lines[tgt].act=val;confirmed.add(tgt);scanned=confirmed.size;
-    saveState();renderLines();updateProg();
-    hist.unshift({n:tgt+1,d:lines[tgt].desc,q:lines[tgt].lq,b:val});
-    try{navigator.vibrate([80,40,80])}catch(e){}
-    var rem=lines.length-confirmed.size;
-    phase='sticker';tgt=-1;
-    if(rem===0){res.innerHTML='<div class="ok" style="font-size:22px">🎉 All Done!</div><div class="info">Tap Done then Submit Pick</div>';updateSC();inp.focus();return}
-    res.innerHTML='<div class="ok">✓ Confirmed — '+val+'</div><div class="info">'+rem+' remaining</div>';
-    renderHist();
-  }
-  updateSC();inp.focus();
-}
-function updateSC(){
-  var c=document.getElementById('scCount'),ico=document.getElementById('scIco'),lbl=document.getElementById('scLbl'),hint=document.getElementById('scHint'),inp=document.getElementById('scIn'),go=document.getElementById('scGo'),ti=document.getElementById('scTitle'),ph=document.getElementById('scPhase');
-  var rem=lines.length-confirmed.size;
-  c.textContent=confirmed.size+' scanned · '+rem+' left';
-  if(phase==='sticker'){ico.textContent='🏷️';lbl.textContent='Scan QR Sticker';lbl.style.color='var(--teal)';hint.textContent='Bluetooth scanner or type MKPK code';inp.className='sc-input';go.className='sc-go';go.textContent='✓ Process Sticker';ti.textContent='Scan Labels';ph.textContent='Scan QR sticker label';ph.style.color='var(--teal)'}
-  else{var l=lines[tgt];ico.textContent='📊';lbl.textContent='Scan Batch Barcode';lbl.style.color='var(--gold)';hint.textContent='Line '+(tgt+1)+': '+(l?l.desc:'')+' — '+(l?l.lq:'');inp.className='sc-input batch';go.className='sc-go batch';go.textContent='✓ Process Batch';ti.textContent='Line '+(tgt+1);ph.textContent='Scan actual batch barcode';ph.style.color='var(--gold)'}
-}
-function renderHist(){
-  var c=document.getElementById('scHist');if(!hist.length){c.innerHTML='';return}
-  var h='<div class="sc-hist-title">Scan History</div>';
-  for(var i=0;i<Math.min(hist.length,6);i++)h+='<div class="sc-hist-item"><span class="l">Line '+hist[i].n+' · '+hist[i].d+'</span><span class="r">'+hist[i].b+'</span></div>';
-  c.innerHTML=h;
+function focusInput() {
+  var el = document.getElementById('scIn');
+  if (el) { el.value = ''; el.focus(); }
 }
 
-/* == SUBMIT == */
-function submit(){
-  var d=confirmed.size,t=lines.length;
-  if(d<1){toast('Scan at least one line first',2000,true);return}
-  if(d<t){
-    if(!confirm('Warning: '+d+' of '+t+' lines scanned.\n\n'+(t-d)+' lines have NOT been scanned and will be skipped.\n\nDo you wish to continue and submit the partial pick?'))return;
+function doScan() {
+  var inp = document.getElementById('scIn');
+  var val = inp.value.trim().toUpperCase();
+  if (!val) return;
+  inp.value = '';
+
+  if (phase === 'qr') {
+    handleQRScan(val);
+  } else {
+    handleBatchScan(val);
   }
-  if(confirmed.size>0){
-    try{
-      // Build picks array
-      var ts=new Date().toLocaleString('en-AU');
-      var picksArr=[];
-      for(var i=0;i<lines.length;i++){
-        if(!confirmed.has(i))continue;
-        var l=lines[i];
-        picksArr.push({order_id:curOrder.id||'',description:l.desc,label_qty:l.lq,sticker:l.stk||'',actual_batch:l.act||'',timestamp:ts});
-      }
-      // Create JSON with picks filled in
-      var saveData={version:1,generated:ts,picks:picksArr};
-      var jsonStr=JSON.stringify(saveData,null,2);
-      var fname='MagKeeper_PickList.json';
-      var blob=new Blob([jsonStr],{type:'application/json'});
-      var file=new File([blob],fname,{type:'application/json'});
-      if(navigator.canShare&&navigator.canShare({files:[file]})){
-        navigator.share({files:[file],title:'MagKeeper Picks'}).then(function(){
-          toast('Saved!',2000);
-        }).catch(function(err){
-          if(err.name!=='AbortError')toast('Share cancelled',2000,true);
-        });
-      }else{
-        var a=document.createElement('a');
-        a.href=URL.createObjectURL(blob);
-        a.download=fname;
-        document.body.appendChild(a);a.click();document.body.removeChild(a);
-        toast('Downloaded — save to OneDrive',3000);
-      }
-    }catch(err){
-      dbg('Save error: '+err.message);
-      toast('Save failed: '+err.message,4000,true);
+  updateScannerUI();
+  if (scanMode === 'bt') focusInput();
+}
+
+function handleQRScan(val) {
+  var res = document.getElementById('scRes');
+  var banner = document.getElementById('unrecBanner');
+
+  // If it looks like a batch barcode during QR phase, ignore politely
+  // (manufacturer barcodes are typically all digits or short alphanumeric)
+  // We accept anything MKPK: as QR, everything else is potentially a batch
+  // If the user scans a batch by mistake in QR phase, we can't easily tell —
+  // we'll just treat non-MKPK input as "try again".
+
+  var parsed = parseQR(val);
+
+  if (parsed) {
+    // Valid MKPK QR
+    currentQR = parsed;
+    phase = 'batch';
+    banner.className = 'unrecognised-banner';
+    vibe(80);
+
+    var orderLabel = parsed.order_id || '(legacy — no order ID)';
+    var legacyNote = parsed.legacy ? '<div class="r-flag">⚠ Legacy QR — no order ID. Ensure desktop can match.</div>' : '';
+    res.innerHTML =
+      '<div class="r-ok">✓ QR Recognised</div>' +
+      '<div class="r-prod">SAP: ' + parsed.sap_code + '  ·  ' + parsed.qty_type + '</div>' +
+      '<div class="r-info">Order: ' + orderLabel + '</div>' +
+      legacyNote;
+  } else if (val.indexOf('MKPK:') === 0) {
+    // Starts with MKPK but malformed
+    res.innerHTML = '<div class="r-warn">⚠ Malformed QR — scan again</div>';
+    focusInput();
+  } else {
+    // Unknown QR/barcode entirely — capture as unrecognised, go to batch phase
+    currentQR = {
+      order_id: '',
+      sap_code: '',
+      qty_type: '',
+      raw: val,
+      unrecognised: true
+    };
+    phase = 'batch';
+    banner.className = 'unrecognised-banner on';
+    vibe([80, 40, 80]);
+    res.innerHTML =
+      '<div class="r-warn">⚠ Unrecognised QR</div>' +
+      '<div class="r-info">Raw: ' + val.substring(0, 40) + (val.length > 40 ? '…' : '') + '</div>' +
+      '<div class="r-flag">Scan batch barcode to capture for manual match</div>';
+  }
+}
+
+function handleBatchScan(val) {
+  var res = document.getElementById('scRes');
+  var banner = document.getElementById('unrecBanner');
+
+  // If user accidentally scanned another QR, restart QR phase
+  if (val.indexOf('MKPK:') === 0) {
+    phase = 'qr';
+    currentQR = null;
+    banner.className = 'unrecognised-banner';
+    handleQRScan(val);
+    return;
+  }
+
+  if (!currentQR) { phase = 'qr'; return; }
+
+  // Complete the pair
+  var scan = {
+    order_id:     currentQR.order_id,
+    sap_code:     currentQR.sap_code,
+    qty_type:     currentQR.qty_type,
+    batch_scanned: val,
+    raw_qr:       currentQR.raw,
+    unrecognised: currentQR.unrecognised || false,
+    scanned_at:   new Date().toISOString()
+  };
+  session.push(scan);
+  saveSession();
+
+  var total = session.length;
+  vibe([80, 40, 80]);
+  banner.className = 'unrecognised-banner';
+
+  var flag = scan.unrecognised ? '<div class="r-flag">⚠ Flagged for manual match</div>' : '';
+  var orderLabel = scan.order_id || '—';
+  res.innerHTML =
+    '<div class="r-ok">✓ Pair Saved  (' + total + ' total)</div>' +
+    '<div class="r-prod">' + (scan.sap_code || 'Unknown') + '  ·  Batch: ' + val + '</div>' +
+    '<div class="r-info">Order: ' + orderLabel + '</div>' +
+    flag;
+
+  // Add to history
+  renderHistory();
+
+  // Reset for next QR
+  phase = 'qr';
+  currentQR = null;
+  updateScannerUI();
+  updateSessionPill();
+}
+
+function updateScannerUI() {
+  var ico   = document.getElementById('scIco');
+  var lbl   = document.getElementById('scLbl');
+  var hint  = document.getElementById('scHint');
+  var inp   = document.getElementById('scIn');
+  var go    = document.getElementById('scGo');
+  var title = document.getElementById('scTitle');
+  var ph    = document.getElementById('scPhase');
+  var ctr   = document.getElementById('scCount');
+
+  ctr.textContent = session.length + ' scan' + (session.length !== 1 ? 's' : '') + ' collected this session';
+
+  if (phase === 'qr') {
+    ico.textContent  = '🏷️';
+    lbl.textContent  = 'Scan QR Label';
+    lbl.style.color  = 'var(--teal)';
+    hint.textContent = 'Scan the MagKeeper label on the box';
+    inp.className    = 'sc-input';
+    go.className     = 'sc-go';
+    go.textContent   = '✓ Process';
+    title.textContent = 'Scan Label';
+    ph.textContent   = 'Step 1 — QR code on label';
+    ph.style.color   = 'var(--teal)';
+  } else {
+    var isUnrec = currentQR && currentQR.unrecognised;
+    ico.textContent  = '📊';
+    lbl.textContent  = 'Scan Batch Barcode';
+    lbl.style.color  = isUnrec ? 'var(--red)' : 'var(--gold)';
+    hint.textContent = currentQR
+      ? ('Box: ' + (currentQR.sap_code || '?') + '  ' + (currentQR.qty_type || '') +
+         (currentQR.order_id ? '  · Order: ' + currentQR.order_id : ''))
+      : 'Scan the manufacturer barcode';
+    inp.className    = isUnrec ? 'sc-input unrecognised-mode' : 'sc-input batch-mode';
+    go.className     = isUnrec ? 'sc-go unrecognised-go' : 'sc-go batch-go';
+    go.textContent   = '✓ Save Pair';
+    title.textContent = 'Scan Batch';
+    ph.textContent   = 'Step 2 — Manufacturer batch barcode';
+    ph.style.color   = isUnrec ? 'var(--red)' : 'var(--gold)';
+  }
+}
+
+function renderHistory() {
+  var el = document.getElementById('scHist');
+  var recent = session.slice(-6).reverse();
+  if (!recent.length) { el.innerHTML = ''; return; }
+  var h = '<div class="sc-hist-title">Recent Scans</div>';
+  for (var i = 0; i < recent.length; i++) {
+    var s = recent[i];
+    var flagged = s.unrecognised;
+    h += '<div class="sc-hist-item' + (flagged ? ' flagged' : '') + '">' +
+      '<span class="l' + (flagged ? ' fl' : '') + '">' +
+        (flagged ? '⚠ ' : '') +
+        (s.order_id || '—') + '  ·  ' + (s.sap_code || 'unknown') +
+      '</span>' +
+      '<span class="r">' + s.batch_scanned + '</span>' +
+    '</div>';
+  }
+  el.innerHTML = h;
+}
+
+// ─── Session Review ───────────────────────────────────────────────────────────
+function renderReview() {
+  var total  = session.length;
+  var flags  = session.filter(function(s){ return s.unrecognised; }).length;
+  var orders = {};
+  session.forEach(function(s) {
+    var key = s.order_id || '(unrecognised)';
+    if (!orders[key]) orders[key] = [];
+    orders[key].push(s);
+  });
+  var orderCount = Object.keys(orders).length;
+
+  // Summary
+  var ss = document.getElementById('submitSummary');
+  ss.innerHTML =
+    '<div class="ss-row"><span>Total scans</span><span>' + total + '</span></div>' +
+    '<div class="ss-row"><span>Orders covered</span><span>' + orderCount + '</span></div>' +
+    (flags > 0 ? '<div class="ss-row"><span class="ss-flag">Flagged (need manual match)</span><span class="ss-flag">' + flags + '</span></div>' : '');
+
+  // Groups
+  var list = document.getElementById('reviewList');
+  if (!total) {
+    list.innerHTML = '<div class="empty"><div class="icon">📋</div><p>No scans yet.<br>Start scanning first.</p></div>';
+    document.getElementById('submitBtn').disabled = true;
+    return;
+  }
+  document.getElementById('submitBtn').disabled = false;
+
+  var h = '';
+  var orderKeys = Object.keys(orders);
+  for (var oi = 0; oi < orderKeys.length; oi++) {
+    var key   = orderKeys[oi];
+    var items = orders[key];
+    var hasFlag = items.some(function(s){ return s.unrecognised; });
+    var groupId = 'og_' + oi;
+    h += '<div class="order-group">' +
+      '<div class="order-group-hdr" onclick="toggleGroup(\'' + groupId + '\')">' +
+        '<div class="og-left">' +
+          '<div class="og-title' + (hasFlag ? ' unrecognised' : '') + '">' +
+            (hasFlag ? '⚠ ' : '') + key +
+          '</div>' +
+          '<div class="og-meta">' + items.length + ' scan' + (items.length !== 1 ? 's' : '') + '</div>' +
+        '</div>' +
+        '<div class="og-badge' + (hasFlag ? ' flag' : '') + '">' +
+          (hasFlag ? 'NEEDS MATCH' : items.length + ' boxes') +
+        '</div>' +
+      '</div>' +
+      '<div class="og-items" id="' + groupId + '">';
+
+    for (var si = 0; si < items.length; si++) {
+      var scan = items[si];
+      var scanIdx = session.indexOf(scan);
+      h += '<div class="scan-item">' +
+        '<div class="si-left">' +
+          '<div class="si-sap">' + (scan.sap_code || '?') + '  ·  ' + (scan.qty_type || '—') + '</div>' +
+          '<div class="si-batch">Batch: ' + scan.batch_scanned + '</div>' +
+          (scan.unrecognised ? '<div class="si-flag">⚠ Raw QR: ' + scan.raw_qr.substring(0, 30) + '</div>' : '') +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:8px">' +
+          '<div class="si-qty">' + (scan.qty_type || '') + '</div>' +
+          '<button class="si-del" onclick="deleteScan(' + scanIdx + ')">✕</button>' +
+        '</div>' +
+      '</div>';
     }
+    h += '</div></div>';
   }
-  var partial=d<t?' (partial — '+(t-d)+' not scanned)':'';
-  document.getElementById('pickLines').innerHTML='<div class="complete-card"><div class="big">✓</div><h3>Pick Submitted'+partial+'</h3><p>'+curOrder.cust+' — '+d+' of '+t+' lines</p><p style="margin-top:10px;font-size:12px;color:var(--gold)">Save MagKeeper_PickList.json to your<br>OneDrive folder (same place as workbook).<br><br>On desktop: 📱 Mobile Pick → Import Pick List</p></div><button class="btn btn-ghost btn-full btn-md" onclick="backOrders()" style="margin-top:12px">← Back to Orders</button>';
-  document.getElementById('pickNav').style.display='none';
-  document.getElementById('scanBtn').style.display='none';
-  delete pickState[orderKey(curOrder)];
-}
-function backOrders(){
-  saveState();
-  document.getElementById('pickNav').style.display='flex';
-  renderOrders();show('s-orders');
-}
-function pickAll(){
-  if(!orders.length)return;
-  curOrder={id:'ALL ORDERS',date:'',cust:orders.length+' Orders Combined',loc:'',lines:[]};
-  curOrderIdx=-1;
-  for(var i=0;i<orders.length;i++)for(var j=0;j<orders[i].lines.length;j++)curOrder.lines.push(orders[i].lines[j]);
-  var key=orderKey(curOrder);
-  if(pickState[key]){lines=pickState[key].lines;confirmed=pickState[key].confirmed;hist=pickState[key].hist||[];scanned=confirmed.size;}
-  else{confirmed=new Set();hist=[];scanned=0;buildLines();pickState[key]={lines:lines,confirmed:confirmed,hist:hist}}
-  renderPick();show('s-pick');
+  list.innerHTML = h;
 }
 
-/* == DEMO == */
-function loadDemo(){
-  prods=[{sap:'1035140',desc:'9m UT600',bq:66},{sap:'1024257',desc:'PH Booster 150g',bq:80},{sap:'1007621',desc:'Exel 18m #12',bq:40}];
-  orders=[{id:'ORD-DEMO-001',date:'06/03/2026',cust:'West Burleigh Quarry',loc:'B',lines:[{desc:'9m UT600',batch:'07JA26Q1',qty:98,st:'Pending'},{desc:'PH Booster 150g',batch:'15FE26A2',qty:240,st:'Pending'},{desc:'Exel 18m #12',batch:'3000509210',qty:120,st:'Pending'}]}];
-  pickState={};
-  document.getElementById('dot').classList.add('on');
-  document.getElementById('fileBadge').textContent='Demo';
-  toast('Demo loaded');renderOrders();show('s-orders');
+function toggleGroup(id) {
+  var el = document.getElementById(id);
+  el.className = el.className === 'og-items' ? 'og-items open' : 'og-items';
 }
 
-/* == CAMERA SCAN == */
-var scanMode='bt';
-var camStream=null;
-var camAnimId=null;
-var lastCamCode='';
-var camCooldown=false;
+function deleteScan(idx) {
+  if (!confirm('Remove this scan?')) return;
+  session.splice(idx, 1);
+  saveSession();
+  renderReview();
+  updateHomeUI();
+  toast('Scan removed');
+}
 
-function setScanMode(mode){
-  scanMode=mode;
-  document.getElementById('modeBT').className='sc-mode-btn'+(mode==='bt'?' active':'');
-  document.getElementById('modeCam').className='sc-mode-btn'+(mode==='cam'?' active cam-active':'');
-  document.getElementById('btSection').className='bt-section'+(mode==='cam'?' hide':'');
-  document.getElementById('camWrap').className='cam-wrap'+(mode==='cam'?' on':'');
-  if(mode==='cam'){
+// ─── Submit ───────────────────────────────────────────────────────────────────
+function submitSession() {
+  if (!session.length) { toast('Nothing to submit', 2000, true); return; }
+
+  var flags = session.filter(function(s){ return s.unrecognised; }).length;
+  var msg = 'Submit ' + session.length + ' scan(s)';
+  if (flags) msg += '\n\n⚠ ' + flags + ' scan(s) are flagged for manual matching on the desktop.';
+  msg += '\n\nThis will save a JSON file to share to OneDrive.';
+  if (!confirm(msg)) return;
+
+  var payload = {
+    version:      2,
+    submitted_at: new Date().toISOString(),
+    scan_count:   session.length,
+    flag_count:   flags,
+    scans:        session
+  };
+
+  var ts = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 16);
+  var fname = 'MKScan_' + ts + '.json';
+  var jsonStr = JSON.stringify(payload, null, 2);
+  var blob = new Blob([jsonStr], { type: 'application/json' });
+  var file = new File([blob], fname, { type: 'application/json' });
+
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    navigator.share({ files: [file], title: 'MagKeeper Scan Results' })
+      .then(function() {
+        toast('Shared successfully!');
+        afterSubmit(fname);
+      })
+      .catch(function(err) {
+        if (err.name !== 'AbortError') toast('Share cancelled', 2000, true);
+      });
+  } else {
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fname;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    toast('Downloaded — save to OneDrive');
+    afterSubmit(fname);
+  }
+}
+
+function afterSubmit(fname) {
+  var count = session.length;
+  session = [];
+  saveSession();
+  updateHomeUI();
+  show('s-home');
+  setTimeout(function() {
+    var hw = document.querySelector('.home-wrap');
+    if (hw) hw.insertAdjacentHTML('afterbegin',
+      '<div class="complete-card" style="width:100%;max-width:360px">' +
+        '<div class="big">✓</div>' +
+        '<h3>Session Submitted</h3>' +
+        '<p>' + count + ' scan(s) exported.<br><br>' +
+        '<span style="color:var(--gold)">' + fname + '</span><br><br>' +
+        'On desktop: <b>Pick/Deliver → Import Mobile Scan</b></p>' +
+      '</div>');
+  }, 200);
+}
+
+// ─── Home UI ─────────────────────────────────────────────────────────────────
+function updateHomeUI() {
+  var total  = session.length;
+  var flags  = session.filter(function(s){ return s.unrecognised; }).length;
+  var orders = new Set(session.map(function(s){ return s.order_id || '__unrecognised__'; }));
+
+  document.getElementById('sessionPill').textContent = total + ' scanned';
+  document.getElementById('sessionPill').className   = 'session-pill' + (total > 0 ? ' on' : '');
+  document.getElementById('homeSessionCard').style.display = total > 0 ? 'block' : 'none';
+  document.getElementById('homeCount').textContent   = total;
+  document.getElementById('homeOrders').textContent  = orders.size;
+  document.getElementById('btnReview').style.display = total > 0 ? 'flex' : 'none';
+  document.getElementById('btnClear').style.display  = total > 0 ? 'flex' : 'none';
+
+  var flagRow = document.getElementById('homeFlagRow');
+  if (flags > 0) {
+    flagRow.style.display = 'flex';
+    document.getElementById('homeFlags').textContent = flags;
+  } else {
+    flagRow.style.display = 'none';
+  }
+}
+
+function clearSession() {
+  if (!confirm('Clear all ' + session.length + ' scan(s)?\n\nThis cannot be undone.')) return;
+  session = [];
+  saveSession();
+  updateHomeUI();
+  toast('Session cleared');
+}
+
+function updateSessionPill() {
+  document.getElementById('sessionPill').textContent = session.length + ' scanned';
+  document.getElementById('sessionPill').className = 'session-pill' + (session.length > 0 ? ' on' : '');
+}
+
+// ─── Scan Mode ────────────────────────────────────────────────────────────────
+function setScanMode(mode) {
+  scanMode = mode;
+  document.getElementById('modeBT').className  = 'sc-mode-btn' + (mode === 'bt' ? ' active' : '');
+  document.getElementById('modeCam').className = 'sc-mode-btn' + (mode === 'cam' ? ' active cam-mode' : '');
+  document.getElementById('btSection').className = 'bt-section' + (mode === 'cam' ? ' hide' : '');
+  document.getElementById('camWrap').className   = 'cam-wrap' + (mode === 'cam' ? ' on' : '');
+  if (mode === 'cam') {
     startCam();
-  }else{
+  } else {
     stopCam();
-    setTimeout(function(){var el=document.getElementById('scIn');if(el){el.value='';el.focus()}},100);
+    setTimeout(focusInput, 100);
   }
 }
 
-function startCam(){
-  var video=document.getElementById('camVideo');
-  var status=document.getElementById('camStatus');
-  status.textContent='Starting camera...';
+// ─── Camera ───────────────────────────────────────────────────────────────────
+function startCam() {
+  var video  = document.getElementById('camVideo');
+  var status = document.getElementById('camStatus');
+  status.textContent = 'Starting camera...';
 
-  // Try BarcodeDetector API first (Safari 15.4+, handles QR + Code128)
-  var useBarcodeDetector=typeof BarcodeDetector!=='undefined';
-  var detector=null;
-  if(useBarcodeDetector){
-    try{
-      detector=new BarcodeDetector({formats:['qr_code','code_128','code_39','ean_13']});
-    }catch(e){useBarcodeDetector=false}
+  var useBD = typeof BarcodeDetector !== 'undefined';
+  var detector = null;
+  if (useBD) {
+    try { detector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'code_39', 'ean_13'] }); }
+    catch(e) { useBD = false; }
   }
 
   navigator.mediaDevices.getUserMedia({
-    video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}}
-  }).then(function(stream){
-    camStream=stream;
-    video.srcObject=stream;
+    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+  }).then(function(stream) {
+    camStream = stream;
+    video.srcObject = stream;
     video.play();
-    status.textContent='Point at QR code or barcode...';
-    scanFrame(video,detector,useBarcodeDetector);
-  }).catch(function(err){
-    status.textContent='Camera error: '+err.message;
-    dbg('Camera error: '+err.message);
-    toast('Camera unavailable — use scanner/type',3000,true);
+    status.textContent = 'Point at QR code or barcode...';
+    scanFrame(video, detector, useBD);
+  }).catch(function(err) {
+    status.textContent = 'Camera error: ' + err.message;
+    toast('Camera unavailable — use scanner/type', 3000, true);
     setScanMode('bt');
   });
 }
 
-function scanFrame(video,detector,useBD){
-  if(!camStream||scanMode!=='cam')return;
-  var canvas=document.getElementById('camCanvas');
-  var ctx=canvas.getContext('2d',{willReadFrequently:true});
-  var status=document.getElementById('camStatus');
+function scanFrame(video, detector, useBD) {
+  if (!camStream || scanMode !== 'cam') return;
+  var canvas  = document.getElementById('camCanvas');
+  var ctx     = canvas.getContext('2d', { willReadFrequently: true });
+  var status  = document.getElementById('camStatus');
 
-  function tick(){
-    if(!camStream||scanMode!=='cam'){return}
-    if(video.readyState<2){camAnimId=requestAnimationFrame(tick);return}
+  function tick() {
+    if (!camStream || scanMode !== 'cam') return;
+    if (video.readyState < 2) { camAnimId = requestAnimationFrame(tick); return; }
+    canvas.width  = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0);
+    if (camCooldown) { camAnimId = requestAnimationFrame(tick); return; }
 
-    canvas.width=video.videoWidth;
-    canvas.height=video.videoHeight;
-    ctx.drawImage(video,0,0);
-
-    if(camCooldown){camAnimId=requestAnimationFrame(tick);return}
-
-    if(useBD&&detector){
-      // BarcodeDetector — handles QR + 1D barcodes
-      detector.detect(canvas).then(function(codes){
-        if(codes.length>0){
-          var val=codes[0].rawValue;
-          if(val&&val!==lastCamCode){
-            lastCamCode=val;
+    if (useBD && detector) {
+      detector.detect(canvas).then(function(codes) {
+        if (codes.length > 0) {
+          var val = codes[0].rawValue;
+          if (val && val !== lastCamCode) {
+            lastCamCode = val;
             onCamScan(val.trim().toUpperCase());
           }
         }
       }).catch(function(){});
-    }else if(typeof jsQR!=='undefined'){
-      // Fallback: jsQR for QR codes only
-      var imgData=ctx.getImageData(0,0,canvas.width,canvas.height);
-      var code=jsQR(imgData.data,canvas.width,canvas.height,{inversionAttempts:'attemptBoth'});
-      if(code&&code.data){
-        var val=code.data.trim().toUpperCase();
-        if(val!==lastCamCode){
-          lastCamCode=val;
-          onCamScan(val);
-        }
+    } else if (typeof jsQR !== 'undefined') {
+      var imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      var code    = jsQR(imgData.data, canvas.width, canvas.height, { inversionAttempts: 'attemptBoth' });
+      if (code && code.data) {
+        var val = code.data.trim().toUpperCase();
+        if (val !== lastCamCode) { lastCamCode = val; onCamScan(val); }
       }
     }
-    camAnimId=requestAnimationFrame(tick);
+    camAnimId = requestAnimationFrame(tick);
   }
   tick();
 }
 
-function onCamScan(val){
-  // Cooldown to prevent rapid duplicate reads
-  camCooldown=true;
-  setTimeout(function(){camCooldown=false;lastCamCode=''},1500);
-
-  try{navigator.vibrate(100)}catch(e){}
-  var status=document.getElementById('camStatus');
-  status.textContent='✓ Read: '+val;
-
-  // Feed into the same scan pipeline
-  var inp=document.getElementById('scIn');
-  inp.value=val;
+function onCamScan(val) {
+  camCooldown = true;
+  setTimeout(function(){ camCooldown = false; lastCamCode = ''; }, 1500);
+  vibe(100);
+  document.getElementById('camStatus').textContent = '✓ Read: ' + val.substring(0, 30);
+  document.getElementById('scIn').value = val;
   doScan();
 }
 
-function stopCam(){
-  if(camAnimId){cancelAnimationFrame(camAnimId);camAnimId=null}
-  if(camStream){
-    camStream.getTracks().forEach(function(t){t.stop()});
-    camStream=null;
+function stopCam() {
+  if (camAnimId) { cancelAnimationFrame(camAnimId); camAnimId = null; }
+  if (camStream) {
+    camStream.getTracks().forEach(function(t){ t.stop(); });
+    camStream = null;
   }
-  var video=document.getElementById('camVideo');
-  if(video)video.srcObject=null;
-  lastCamCode='';
+  var v = document.getElementById('camVideo');
+  if (v) v.srcObject = null;
+  lastCamCode = '';
 }
 
-// Camera cleanup handled in closeScanner above
-
-
+// ─── Init ─────────────────────────────────────────────────────────────────────
+loadSession();
+updateHomeUI();
 </script>
 </body>
 </html>

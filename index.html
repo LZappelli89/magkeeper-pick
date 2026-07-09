@@ -179,7 +179,7 @@
         <span class="chev">›</span>
       </button>
     </div>
-    <div class="home-foot" id="homeFoot">v1.7 (BT scanner QR) · Scan the order QR on your pick sheet to begin</div>
+    <div class="home-foot" id="homeFoot">v1.8 (scanner-safe QR) · Scan the order QR on your pick sheet to begin</div>
   </div>
 
   <!-- STOCK -->
@@ -341,15 +341,21 @@ function loadFile(ev){
 let qrAcc = null;   // accumulates multi-QR orders: {order_id,total,got:{},items}
 
 function parsePickPayload(text){
-  const lines = (text||'').split('\n').map(l=>l.replace(/\r$/,'')).filter(l=>l.length);
-  if(!lines.length) return {error:'empty'};
-  const hdr = lines[0].split('\t');
-  if(hdr[0] !== 'MK6PICK') return {error:'notpick'};
+  // Scanner-safe format: MK6PICK~v1~<order>[~i/t]|<rec>|<rec>...
+  //   ~ header sep · | record sep · ^ field sep · label_id ':' -> '|'
+  const raw = (text||'').trim();
+  if(!raw) return {error:'empty'};
+  if(raw.indexOf('MK6PICK') !== 0) return {error:'notpick'};
+  const recs = raw.split('|');
+  const hdr = recs[0].split('~');
   const order_id = hdr[2] || '';
   let idx=1, total=1;
   if(hdr[3] && hdr[3].indexOf('/')>=0){ const p=hdr[3].split('/'); idx=+p[0]; total=+p[1]; }
-  const items = lines.slice(1).map(l=>{ const f=l.split('\t');
-    return {label_id:f[0], product:f[1]||'', qty_text:f[2]||'', expected_batch:f[3]||''}; });
+  const items = recs.slice(1).map(rec=>{
+    const f = rec.split('^');
+    return {label_id:(f[0]||'').replace(/:/g,'|'), product:f[1]||'',
+            qty_text:f[2]||'', expected_batch:f[3]||''};
+  });
   return {order_id, idx, total, items};
 }
 
@@ -613,6 +619,42 @@ function stopCam(){ const v=document.getElementById('camVideo'); if(camStream){ 
 
 /* keep the scanner input focused on the pick screen so a BT scan always lands */
 document.addEventListener('click',()=>{ if(document.getElementById('scr-pick').classList.contains('active') && mode==='scanner'){ const i=document.getElementById('scanInput'); if(i && document.activeElement!==i) i.focus(); }});
+
+/* ── document-level Bluetooth-scanner capture ──────────────────────────────
+   iOS Safari often won't hold focus on an input from JS, so a scan can "leak"
+   to the browser (opening a search/URL window). This catches the scanner's
+   rapid keystrokes at the document level and assembles them into one scan,
+   regardless of what's focused — the robust way to handle BT scanners on iOS. */
+let _scanBuf = '';
+let _scanLast = 0;
+document.addEventListener('keydown', (e) => {
+  // only act on the pick screen (loading a pick QR or scanning boxes)
+  const onPick = document.getElementById('scr-pick').classList.contains('active');
+  if(!onPick) return;
+  const now = Date.now();
+  // scanners type fast; a >120ms gap means a new (human) keystroke sequence
+  if(now - _scanLast > 120) _scanBuf = '';
+  _scanLast = now;
+
+  if(e.key === 'Enter'){
+    const val = _scanBuf.trim();
+    _scanBuf = '';
+    if(val){
+      e.preventDefault();
+      e.stopPropagation();
+      // clear the visible input too (in case it captured some chars)
+      const si = document.getElementById('scanInput'); if(si) si.value='';
+      routeScan(val);
+    }
+    return;
+  }
+  // accumulate printable single characters
+  if(e.key && e.key.length === 1){
+    _scanBuf += e.key;
+    // prevent the browser from acting on scanned chars (e.g. '/' opening search)
+    e.preventDefault();
+  }
+}, true);   // capture phase — intercept before the browser/input acts
 
 /* ── toast ── */
 let toastTimer;

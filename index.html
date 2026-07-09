@@ -100,6 +100,18 @@
   .looking-for .lf-txt b{display:block;font-size:13.5px;}
   .looking-for .lf-txt span{display:block;font-size:11.5px;color:#3d6b4f;margin-top:2px;}
   .scan-input{display:flex;gap:8px;}
+  .qr-load-card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:24px 18px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;}
+  .qr-load-emoji{font-size:46px;}
+  .qr-load-title{font-size:18px;font-weight:800;color:var(--ink);}
+  .qr-load-sub{font-size:13px;color:var(--ink-soft);line-height:1.5;max-width:320px;}
+  .qr-load-input{width:100%;border:2px solid var(--sap-blue);border-radius:12px;padding:16px;font-size:16px;outline:none;text-align:center;background:#f7fbff;}
+  .qr-load-input:focus{border-color:var(--sap-blue-2);background:#fff;box-shadow:0 0 0 4px rgba(47,155,255,.15);}
+  .qr-load-btn{width:100%;border:none;border-radius:12px;padding:15px;font-size:16px;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--green),#0d8b46);box-shadow:var(--shadow);}
+  .qr-load-btn:active{transform:scale(.98);}
+  .qr-load-status{font-size:13px;font-weight:600;min-height:18px;}
+  .qr-load-status.err{color:var(--red);}
+  .qr-load-status.ok{color:var(--green);}
+  .qr-load-status.wait{color:var(--amber);}
   .scan-input input{flex:1;border:1px solid var(--line);border-radius:12px;padding:14px;font-size:15px;outline:none;}
   .scan-input input:focus{border-color:var(--sap-blue);}
   .scan-btn{border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--sap-blue),var(--sap-blue-2));box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;gap:10px;}
@@ -179,7 +191,7 @@
         <span class="chev">›</span>
       </button>
     </div>
-    <div class="home-foot" id="homeFoot">v1.8 (scanner-safe QR) · Scan the order QR on your pick sheet to begin</div>
+    <div class="home-foot" id="homeFoot">v2.0 (any-order + N/A) · Scan the order QR on your pick sheet to begin</div>
   </div>
 
   <!-- STOCK -->
@@ -190,6 +202,24 @@
   </div>
 
   <!-- PICK -->
+  <div class="screen" id="scr-qrload">
+    <div class="sec-head"><h3>Load Order by QR</h3></div>
+    <div class="qr-load-card">
+      <div class="qr-load-emoji">📷</div>
+      <div class="qr-load-title">Scan the order QR from your pick sheet</div>
+      <div class="qr-load-sub">Tap the box below first, then scan the QR with your Bluetooth scanner. The order will load automatically.</div>
+      <input id="qrLoadInput" class="qr-load-input" placeholder="Tap here, then scan the QR…"
+             autocomplete="off" autocapitalize="off" spellcheck="false" autocorrect="off"
+             enterkeyhint="done"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();submitQrLoad();}">
+      <button class="qr-load-btn" onclick="submitQrLoad()">Load order</button>
+      <div class="qr-load-status" id="qrLoadStatus"></div>
+    </div>
+    <div class="bottom-actions">
+      <button class="btn ghost" onclick="go('home')">Back</button>
+    </div>
+  </div>
+
   <div class="screen" id="scr-pick">
     <div class="sec-head"><h3 id="pickTitle">New Pick</h3><div class="updated" id="pickOrderLbl"></div></div>
     <div class="toggle" id="modeToggle">
@@ -215,6 +245,7 @@
                onkeydown="if(event.key==='Enter'){event.preventDefault();routeScan(this.value);this.value='';}">
         <button class="scan-btn ghost" style="flex:0 0 auto;padding:14px 16px" onclick="routeScan(document.getElementById('scanInput').value);document.getElementById('scanInput').value='';">Enter</button>
       </div>
+      <button id="naBtn" class="scan-btn ghost" style="display:none;margin-top:2px;" onclick="captureNoBatch()">✓ No batch — mark N/A &amp; continue</button>
     </div>
     <div class="session">
       <div class="s-head"><b>This pick session</b><span class="count" id="sessCount">0 items</span></div>
@@ -395,26 +426,58 @@ function finalizePickLoad(order_id, items){
   document.getElementById('pickBtn').disabled=false;
   document.getElementById('pickBtn').style.opacity='1';
   toast(`Loaded ${order_id} · ${items.length} box(es)`,'ok');
-  // reset the pick session + go to the pick screen (camera stays on for boxes)
+  // move to the pick screen and set up box scanning
+  go('pick');
+  setMode('scanner');
   resetPick();
   document.getElementById('pickTitle').textContent = 'Picking ' + order_id;
   document.getElementById('vfHint').textContent = 'Scan the box QR';
   setStage('qr');
+  const bi = document.getElementById('scanInput');
+  if(bi){ bi.placeholder='Tap here, then scan the box QR…'; setTimeout(()=>bi.focus(),300); }
 }
 
 function stopScan(){ window._loadingPickQR=false; stopCam(); }
 
 /* start the camera to scan the order QR from the pick sheet */
-async function startPickFromQR(){
+function startPickFromQR(){
   qrAcc = null;
-  window._loadingPickQR = true;   // next scan loads a pick (set before go/setMode)
-  go('pick');
-  setMode('scanner');   // BT scanner is primary — a focused input catches the scan
-  document.getElementById('pickTitle').textContent = 'Scan the order QR';
-  document.getElementById('vfHint').textContent = 'Scan the QR on the pick sheet';
-  const inp = document.getElementById('scanInput');
-  if(inp){ inp.placeholder='Scan the order QR from the pick sheet…';
-           setTimeout(()=>inp.focus(), 250); }
+  window._loadingPickQR = true;
+  go('qrload');
+  const inp = document.getElementById('qrLoadInput');
+  const st = document.getElementById('qrLoadStatus');
+  if(st){ st.textContent=''; st.className='qr-load-status'; }
+  if(inp){ inp.value=''; setTimeout(()=>inp.focus(), 300); }
+}
+
+/* process whatever the scanner typed into the big QR-load box */
+function submitQrLoad(){
+  const inp = document.getElementById('qrLoadInput');
+  const st = document.getElementById('qrLoadStatus');
+  const val = (inp ? inp.value : '').trim();
+  if(!val){ if(st){ st.textContent='Tap the box, then scan the QR.'; st.className='qr-load-status wait'; } return; }
+  const r = parsePickPayload(val);
+  if(r.error){
+    if(st){ st.textContent='That doesn\u2019t look like an order QR. Scan the QR on the pick sheet (starts with MK6PICK).'; st.className='qr-load-status err'; }
+    if(inp){ inp.value=''; inp.focus(); }
+    return;
+  }
+  // valid — hand off to the shared loader (handles single + multi-QR)
+  if(r.total>1){
+    // accumulate multi-QR here, keep the box focused for the next scan
+    if(!qrAcc || qrAcc.order_id!==r.order_id){ qrAcc={order_id:r.order_id,total:r.total,got:{},items:[]}; }
+    if(!qrAcc.got[r.idx]){ qrAcc.got[r.idx]=true; qrAcc.items=qrAcc.items.concat(r.items); }
+    const have=Object.keys(qrAcc.got).length;
+    if(have < qrAcc.total){
+      if(st){ st.textContent=`Scanned ${have} of ${qrAcc.total} — scan the next QR`; st.className='qr-load-status wait'; }
+      if(inp){ inp.value=''; inp.focus(); }
+      return;
+    }
+    finalizePickLoad(qrAcc.order_id, qrAcc.items);
+    qrAcc=null;
+    return;
+  }
+  finalizePickLoad(r.order_id, r.items);
 }
 
 
@@ -427,6 +490,7 @@ function go(scr){
   else back.style.display='flex';
   if(scr==='stock'){ title.textContent='Stock Levels'; sub.textContent='From MK6'; renderStock();
     document.getElementById('stockUpdated').textContent = DATA.generated_at ? ('Updated '+DATA.generated_at.replace('T',' ').slice(0,16)) : ''; }
+  if(scr==='qrload'){ title.textContent='Load Order'; sub.textContent='Scan the pick-sheet QR'; }
   if(scr==='pick'){ title.textContent='Pick'; sub.textContent='Scan · Review · Submit'; setStage('qr');
     if(mode==='scanner') setTimeout(()=>document.getElementById('scanInput').focus(),200); }
   window.scrollTo(0,0);
@@ -463,10 +527,12 @@ function setStage(s){
   const inp=document.getElementById('scanInput');
   if(s==='qr'){ ic.textContent='1'; prompt.classList.remove('batch'); t.textContent='Scan box QR';
     sub.textContent='The box label identifies the exact pick line'; vf.textContent='Scan the box QR sticker';
-    lf.classList.remove('show'); if(inp) inp.placeholder='Scan box QR…'; }
+    lf.classList.remove('show'); if(inp) inp.placeholder='Scan box QR…';
+    const nb=document.getElementById('naBtn'); if(nb) nb.style.display='none'; }
   if(s==='batch'){ ic.textContent='2'; prompt.classList.add('batch'); t.textContent='Scan batch barcode';
     sub.textContent='Capture the real batch on this box'; vf.textContent='Scan the batch barcode';
-    lf.classList.add('show'); if(inp) inp.placeholder='Scan batch barcode (or type NA)…'; }
+    lf.classList.add('show'); if(inp) inp.placeholder='Scan batch barcode (or tap N/A)…';
+    const nb=document.getElementById('naBtn'); if(nb) nb.style.display='block'; }
   if(mode==='scanner' && inp) setTimeout(()=>inp.focus(),100);
 }
 
@@ -497,9 +563,20 @@ function onScan(raw){
     document.getElementById('lfQty').textContent = isFull?'1':(pendingItem.qty_text||'').replace(/[^0-9]/g,'')||'?';
     document.getElementById('lfUnit').textContent = isFull?'box':'pc';
     document.getElementById('lfProduct').textContent = pendingItem.product||'—';
-    document.getElementById('lfNext').textContent = 'Now scan the batch barcode on this box';
+    // if this product has no expected batch (e.g. harness wire), guide the user
+    // straight to N/A rather than waiting for a batch that doesn't exist.
+    const noBatch = !String(pendingItem.expected_batch||'').trim()
+                    || String(pendingItem.expected_batch||'').toUpperCase()==='N/A';
+    if(noBatch){
+      document.getElementById('lfNext').textContent = 'No batch for this product — tap “No batch” below';
+    } else {
+      document.getElementById('lfNext').textContent = 'Now scan the batch barcode on this box';
+    }
     if(pendingItem.order_id){ document.getElementById('pickTitle').textContent='Picking '+pendingItem.order_id;
       document.getElementById('pickOrderLbl').textContent=pendingItem.order_id; }
+    // progress feedback: how many of this order's boxes are now done
+    const totalBoxes=(DATA.pick_items||[]).length;
+    if(totalBoxes){ toast(`Box ${session.length+1} of ${totalBoxes}: ${pendingItem.product}`,'ok'); }
     setStage('batch');
     return;
   }
@@ -512,6 +589,17 @@ function onScan(raw){
     toast('✓ captured','ok');
     setStage('qr');   // straight into the next box
   }
+}
+
+/* tap N/A when the product has no batch (e.g. harness wire) */
+function captureNoBatch(){
+  if(stage!=='batch' || !pendingItem){ return; }
+  session.push({...pendingItem, actual_batch:'N/A', na:true});
+  seen.add(pendingItem.label_id);
+  pendingItem=null;
+  renderSession();
+  toast('✓ marked N/A','ok');
+  setStage('qr');
 }
 
 function renderSession(){
@@ -628,9 +716,12 @@ document.addEventListener('click',()=>{ if(document.getElementById('scr-pick').c
 let _scanBuf = '';
 let _scanLast = 0;
 document.addEventListener('keydown', (e) => {
-  // only act on the pick screen (loading a pick QR or scanning boxes)
+  // only act on the pick (box-scanning) screen
   const onPick = document.getElementById('scr-pick').classList.contains('active');
   if(!onPick) return;
+  // if the box input is focused, let it handle the scan itself (don't double-process)
+  const si = document.getElementById('scanInput');
+  if(si && document.activeElement === si) return;
   const now = Date.now();
   // scanners type fast; a >120ms gap means a new (human) keystroke sequence
   if(now - _scanLast > 120) _scanBuf = '';

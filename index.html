@@ -177,7 +177,7 @@
         <span class="chev">›</span>
       </button>
     </div>
-    <div class="home-foot" id="homeFoot">v1.2 (2026-07-09b) · Point to the MK6 JSON in your shared folder to begin</div>
+    <div class="home-foot" id="homeFoot">v1.3 (cloud-file fix) · Point to the MK6 JSON in your shared folder to begin</div>
   </div>
 
   <!-- STOCK -->
@@ -265,13 +265,25 @@ function loadFile(ev){
     return;
   }
   const rd = new FileReader();
-  rd.onerror = () => toast('Couldn\u2019t open that file (read error).','err');
+  rd.onerror = () => toast('Couldn\u2019t open that file (read error). If it\u2019s in iCloud/OneDrive, open it once in Files first to download it.','err');
   rd.onload = () => {
+    const text = (rd.result || '').toString();
+    // iCloud/OneDrive files can be placeholders that read as empty/partial until
+    // downloaded. Detect that and tell the user, rather than "isn't JSON".
+    const trimmed = text.trim();
+    if(trimmed.length === 0){
+      toast('That file came through EMPTY \u2014 it\u2019s probably still in the cloud. Open it once in the Files app to download it, then try again.','err');
+      return;
+    }
+    if(trimmed[0] !== '{' && trimmed[0] !== '['){
+      toast('File didn\u2019t start like JSON (may be a partial cloud download). Open it in Files first to download fully, then retry.','err');
+      return;
+    }
     let parsed;
     try{
-      parsed = JSON.parse(rd.result);
+      parsed = JSON.parse(text);
     }catch(e){
-      toast('That file isn\u2019t JSON. Pick MK6_mobile_data.json from your MK6 folder.','err');
+      toast('Couldn\u2019t parse the JSON ('+ (e.message||'error') +'). If it\u2019s a cloud file, open it in Files to download it fully first.','err');
       return;
     }
     if(parsed.kind === 'mk6_pick_result'){

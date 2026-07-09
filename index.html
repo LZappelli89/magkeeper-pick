@@ -179,7 +179,7 @@
         <span class="chev">›</span>
       </button>
     </div>
-    <div class="home-foot" id="homeFoot">v1.6 (QR pick) · Scan the order QR on your pick sheet to begin</div>
+    <div class="home-foot" id="homeFoot">v1.7 (BT scanner QR) · Scan the order QR on your pick sheet to begin</div>
   </div>
 
   <!-- STOCK -->
@@ -212,8 +212,8 @@
       </div>
       <div class="scan-input" id="scanInputWrap">
         <input id="scanInput" placeholder="Scan or type here…" autocomplete="off" autocapitalize="off" spellcheck="false"
-               onkeydown="if(event.key==='Enter'){event.preventDefault();onScan(this.value);this.value='';}">
-        <button class="scan-btn ghost" style="flex:0 0 auto;padding:14px 16px" onclick="onScan(document.getElementById('scanInput').value);document.getElementById('scanInput').value='';">Enter</button>
+               onkeydown="if(event.key==='Enter'){event.preventDefault();routeScan(this.value);this.value='';}">
+        <button class="scan-btn ghost" style="flex:0 0 auto;padding:14px 16px" onclick="routeScan(document.getElementById('scanInput').value);document.getElementById('scanInput').value='';">Enter</button>
       </div>
     </div>
     <div class="session">
@@ -401,12 +401,14 @@ function stopScan(){ window._loadingPickQR=false; stopCam(); }
 /* start the camera to scan the order QR from the pick sheet */
 async function startPickFromQR(){
   qrAcc = null;
+  window._loadingPickQR = true;   // next scan loads a pick (set before go/setMode)
   go('pick');
-  setMode('camera');   // QR from paper needs the camera
+  setMode('scanner');   // BT scanner is primary — a focused input catches the scan
   document.getElementById('pickTitle').textContent = 'Scan the order QR';
-  document.getElementById('vfHint').textContent = 'Point at the QR on the pick sheet';
-  // route the first scan(s) as PICK-QR loads until a pick is loaded
-  window._loadingPickQR = true;
+  document.getElementById('vfHint').textContent = 'Scan the QR on the pick sheet';
+  const inp = document.getElementById('scanInput');
+  if(inp){ inp.placeholder='Scan the order QR from the pick sheet…';
+           setTimeout(()=>inp.focus(), 250); }
 }
 
 
@@ -460,6 +462,15 @@ function setStage(s){
     sub.textContent='Capture the real batch on this box'; vf.textContent='Scan the batch barcode';
     lf.classList.add('show'); if(inp) inp.placeholder='Scan batch barcode (or type NA)…'; }
   if(mode==='scanner' && inp) setTimeout(()=>inp.focus(),100);
+}
+
+/* the one entry point for a scan, whether from BT scanner, camera, or typing */
+/* dispatch a scan (from BT scanner Enter, camera, or typing) to the right
+   handler: while loading a pick from a QR → onPickQR; while picking → onScan */
+function routeScan(raw){
+  const val=(raw||'').trim(); if(!val) return;
+  if(window._loadingPickQR){ onPickQR(val); }
+  else { onScan(val); }
 }
 
 /* the one entry point for a scan, whether from BT scanner, camera, or typing */
@@ -593,7 +604,8 @@ async function startCam(){
       };
       requestAnimationFrame(loop);
     } else {
-      toast('Camera scanning not supported here — use the Bluetooth scanner','warn');
+      toast('Camera scanning isn\u2019t supported on iPhone Safari — switched to Bluetooth scanner. Scan the QR now.','warn');
+      setMode('scanner');
     }
   }catch(e){ toast('Camera unavailable — use the Bluetooth scanner','warn'); setMode('scanner'); }
 }

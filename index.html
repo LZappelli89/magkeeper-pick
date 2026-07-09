@@ -158,26 +158,28 @@
 
   <!-- HOME -->
   <div class="screen active" id="scr-home">
-    <div class="home-hero"><div class="lock">🔒</div><h2>MagKeeper Pro 6</h2><p id="homeSite">Field companion</p></div>
-    <div class="file-chip">
+    <div class="home-hero"><div class="lock">🔒</div><h2>MagKeeper Pro 6</h2><p id="homeSite">Field Picking</p></div>
+    <div class="big-btns">
+      <button class="big-btn pick" id="scanQrBtn" onclick="startPickFromQR()">
+        <span class="emoji">📷</span>
+        <span class="txt"><b>Scan order QR</b><span>Scan the QR on the pick sheet to load the pick — no file needed</span></span>
+        <span class="chev">›</span>
+      </button>
+    </div>
+    <div class="file-chip" style="margin-top:2px;">
       <div class="ic">🔗</div>
-      <div class="meta"><b>MK6 data file</b><span id="fileName">Not loaded — tap Open</span></div>
+      <div class="meta"><b>Or load a data file</b><span id="fileName">Fallback — tap Open</span></div>
       <button onclick="pickFile()">Open</button>
     </div>
     <input type="file" id="fileInput" accept=".json,application/json" style="display:none" onchange="loadFile(event)">
-    <div class="big-btns">
-      <button class="big-btn stock" id="stockBtn" onclick="go('stock')" disabled>
-        <span class="emoji">📊</span>
-        <span class="txt"><b>Stock Levels</b><span id="stockBtnSub">Load the MK6 file to view stock</span></span>
-        <span class="chev">›</span>
-      </button>
-      <button class="big-btn pick" id="pickBtn" onclick="go('pick')" disabled>
+    <div class="big-btns" style="margin-top:4px;">
+      <button class="big-btn pick" id="pickBtn" onclick="go('pick')" disabled style="opacity:.5;">
         <span class="emoji">📥</span>
-        <span class="txt"><b>Pick</b><span id="pickBtnSub">Load the MK6 file to start a pick</span></span>
+        <span class="txt"><b>Continue pick</b><span id="pickBtnSub">Scan an order QR (or open a file) to begin</span></span>
         <span class="chev">›</span>
       </button>
     </div>
-    <div class="home-foot" id="homeFoot">v1.3 (cloud-file fix) · Point to the MK6 JSON in your shared folder to begin</div>
+    <div class="home-foot" id="homeFoot">v1.6 (QR pick) · Scan the order QR on your pick sheet to begin</div>
   </div>
 
   <!-- STOCK -->
@@ -267,7 +269,9 @@ function loadFile(ev){
   const rd = new FileReader();
   rd.onerror = () => toast('Couldn\u2019t open that file (read error). If it\u2019s in iCloud/OneDrive, open it once in Files first to download it.','err');
   rd.onload = () => {
-    const text = (rd.result || '').toString();
+    let text = (rd.result || '').toString();
+    // strip a UTF-8/UTF-16 BOM if the OS added one (trips JSON.parse)
+    text = text.replace(/^\uFEFF/, '').replace(/^\uFFFE/, '');
     // iCloud/OneDrive files can be placeholders that read as empty/partial until
     // downloaded. Detect that and tell the user, rather than "isn't JSON".
     const trimmed = text.trim();
@@ -276,7 +280,16 @@ function loadFile(ev){
       return;
     }
     if(trimmed[0] !== '{' && trimmed[0] !== '['){
-      toast('File didn\u2019t start like JSON (may be a partial cloud download). Open it in Files first to download fully, then retry.','err');
+      const peek = trimmed.slice(0, 40).replace(/\n/g,' ');
+      // Microsoft-encrypted / IRM / Personal Vault files carry this signature
+      // and lots of null bytes — the file is ENCRYPTED at rest in storage.
+      if(text.indexOf('MSMAMARPCRYPT') !== -1 || text.indexOf('\u0000') !== -1){
+        toast('This file is ENCRYPTED by OneDrive/Microsoft (not the app\u2019s fault). Move the MK6 folder OUT of a Personal Vault / turn off folder encryption, or use a plain synced folder.','err');
+        console.log('MK6 file read (ENCRYPTED), first 200:', JSON.stringify(text.slice(0,200)));
+        return;
+      }
+      toast('Got: "'+peek+'" ('+text.length+' chars). Not JSON — see console.','err');
+      console.log('MK6 file read, first 200 chars:', JSON.stringify(text.slice(0,200)));
       return;
     }
     let parsed;
@@ -304,10 +317,10 @@ function loadFile(ev){
       document.getElementById('fileName').textContent = f.name;
       document.getElementById('conn').classList.add('on');
       document.getElementById('connTxt').textContent = DATA.workbook ? DATA.workbook.replace(/\.[^.]+$/,'') : 'Linked';
-      document.getElementById('stockBtn').disabled = false;
+      var _sb=document.getElementById('stockBtn'); if(_sb) _sb.disabled=false;
       document.getElementById('pickBtn').disabled = false;
       const nStock=(DATA.stock||[]).length, nPick=(DATA.pick_items||[]).length;
-      document.getElementById('stockBtnSub').textContent = `${nStock} product/magazine rows`;
+      var _sbs=document.getElementById('stockBtnSub'); if(_sbs) _sbs.textContent=`${nStock} product/magazine rows`;
       document.getElementById('pickBtnSub').textContent = nPick ? `${nPick} boxes across pending orders` : 'No pending picks right now';
       if(DATA.workbook) document.getElementById('homeSite').innerHTML = '\uD83D\uDCD8 <b>'+DATA.workbook+'</b>';
       document.getElementById('homeFoot').textContent =
@@ -317,10 +330,86 @@ function loadFile(ev){
       toast('Loaded, but something went wrong reading the contents.','err');
     }
   };
-  rd.readAsText(f);
+  rd.readAsText(f, 'UTF-8');
 }
 
-/* ── nav ── */
+/* ── QR pick loading (scan the order QR on the pick sheet — no file needed) ──
+   Payload format written by MK6 (models/pick_qr.py):
+     MK6PICK\tv1\t<order_id>[\t<idx>/<total>]
+     <label_id>\t<product>\t<qty_text>\t<expected_batch>
+     ...                                                                    */
+let qrAcc = null;   // accumulates multi-QR orders: {order_id,total,got:{},items}
+
+function parsePickPayload(text){
+  const lines = (text||'').split('\n').map(l=>l.replace(/\r$/,'')).filter(l=>l.length);
+  if(!lines.length) return {error:'empty'};
+  const hdr = lines[0].split('\t');
+  if(hdr[0] !== 'MK6PICK') return {error:'notpick'};
+  const order_id = hdr[2] || '';
+  let idx=1, total=1;
+  if(hdr[3] && hdr[3].indexOf('/')>=0){ const p=hdr[3].split('/'); idx=+p[0]; total=+p[1]; }
+  const items = lines.slice(1).map(l=>{ const f=l.split('\t');
+    return {label_id:f[0], product:f[1]||'', qty_text:f[2]||'', expected_batch:f[3]||''}; });
+  return {order_id, idx, total, items};
+}
+
+/* called when a QR is decoded while loading a pick */
+function onPickQR(text){
+  const r = parsePickPayload(text);
+  if(r.error==='notpick'){ toast('That\u2019s not an order QR. Scan the QR on the pick sheet.','err'); return; }
+  if(r.error){ toast('Couldn\u2019t read that QR — try again.','err'); return; }
+  if(r.total<=1){
+    finalizePickLoad(r.order_id, r.items);
+    return;
+  }
+  // multi-QR order: accumulate chunks
+  if(!qrAcc || qrAcc.order_id!==r.order_id){
+    qrAcc = {order_id:r.order_id, total:r.total, got:{}, items:[]};
+  }
+  if(!qrAcc.got[r.idx]){
+    qrAcc.got[r.idx]=true;
+    qrAcc.items = qrAcc.items.concat(r.items);
+  }
+  const have = Object.keys(qrAcc.got).length;
+  if(have < qrAcc.total){
+    toast(`Scanned ${have} of ${qrAcc.total} — scan the next QR on the sheet`,'warn');
+    return;
+  }
+  finalizePickLoad(qrAcc.order_id, qrAcc.items);
+  qrAcc = null;
+}
+
+function finalizePickLoad(order_id, items){
+  // build the same DATA shape the file path produces, but from the QR
+  DATA = {kind:'mk6_mobile_data', workbook:'', from_qr:true,
+          stock:[], pick_items:items, order_id:order_id};
+  itemsById = {};
+  items.forEach(it=>itemsById[it.label_id]=it);
+  window._loadingPickQR = false;   // subsequent scans are box scans now
+  document.getElementById('pickBtn').disabled=false;
+  document.getElementById('pickBtn').style.opacity='1';
+  toast(`Loaded ${order_id} · ${items.length} box(es)`,'ok');
+  // reset the pick session + go to the pick screen (camera stays on for boxes)
+  resetPick();
+  document.getElementById('pickTitle').textContent = 'Picking ' + order_id;
+  document.getElementById('vfHint').textContent = 'Scan the box QR';
+  setStage('qr');
+}
+
+function stopScan(){ window._loadingPickQR=false; stopCam(); }
+
+/* start the camera to scan the order QR from the pick sheet */
+async function startPickFromQR(){
+  qrAcc = null;
+  go('pick');
+  setMode('camera');   // QR from paper needs the camera
+  document.getElementById('pickTitle').textContent = 'Scan the order QR';
+  document.getElementById('vfHint').textContent = 'Point at the QR on the pick sheet';
+  // route the first scan(s) as PICK-QR loads until a pick is loaded
+  window._loadingPickQR = true;
+}
+
+
 function go(scr){
   if((scr==='stock'||scr==='pick') && !DATA){ toast('Open the MK6 file first','warn'); return; }
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
@@ -494,7 +583,12 @@ async function startCam(){
       const det=new BarcodeDetector({formats:['qr_code','code_128','code_39','ean_13','data_matrix']});
       const loop=async()=>{
         if(!camStream) return;
-        try{ const codes=await det.detect(v); if(codes.length){ onScan(codes[0].rawValue); await new Promise(r=>setTimeout(r,900)); } }catch(e){}
+        try{ const codes=await det.detect(v); if(codes.length){
+          const val = codes[0].rawValue;
+          if(window._loadingPickQR){ onPickQR(val); }
+          else { onScan(val); }
+          await new Promise(r=>setTimeout(r,900));
+        } }catch(e){}
         if(camStream) requestAnimationFrame(loop);
       };
       requestAnimationFrame(loop);

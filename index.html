@@ -260,26 +260,50 @@ let camStream = null;
 function pickFile(){ document.getElementById('fileInput').click(); }
 function loadFile(ev){
   const f = ev.target.files[0]; if(!f) return;
+  if(/\.(xlsx|xls|xlsm)$/i.test(f.name)){
+    toast('That\u2019s the Excel workbook. Load MK6_mobile_data.json instead.','err');
+    return;
+  }
   const rd = new FileReader();
+  rd.onerror = () => toast('Couldn\u2019t open that file (read error).','err');
   rd.onload = () => {
+    let parsed;
     try{
-      DATA = JSON.parse(rd.result);
-      if(DATA.kind && DATA.kind!=='mk6_mobile_data') throw new Error('not an MK6 file');
+      parsed = JSON.parse(rd.result);
+    }catch(e){
+      toast('That file isn\u2019t JSON. Pick MK6_mobile_data.json from your MK6 folder.','err');
+      return;
+    }
+    if(parsed.kind === 'mk6_pick_result'){
+      toast('That\u2019s a finished PICK file, not the MK6 data file.','err');
+      return;
+    }
+    const looksRight = parsed.kind === 'mk6_mobile_data'
+                       || Array.isArray(parsed.stock)
+                       || Array.isArray(parsed.pick_items);
+    if(!looksRight){
+      toast('JSON loaded but it\u2019s not MK6 data (no stock / pick_items).','err');
+      return;
+    }
+    try{
+      DATA = parsed;
       itemsById = {};
       (DATA.pick_items||[]).forEach(it=>itemsById[it.label_id]=it);
       document.getElementById('fileName').textContent = f.name;
       document.getElementById('conn').classList.add('on');
-      document.getElementById('connTxt').textContent = 'Linked';
+      document.getElementById('connTxt').textContent = DATA.workbook ? DATA.workbook.replace(/\.[^.]+$/,'') : 'Linked';
       document.getElementById('stockBtn').disabled = false;
       document.getElementById('pickBtn').disabled = false;
       const nStock=(DATA.stock||[]).length, nPick=(DATA.pick_items||[]).length;
       document.getElementById('stockBtnSub').textContent = `${nStock} product/magazine rows`;
       document.getElementById('pickBtnSub').textContent = nPick ? `${nPick} boxes across pending orders` : 'No pending picks right now';
-      if(DATA.workbook) document.getElementById('homeSite').textContent = DATA.workbook;
+      if(DATA.workbook) document.getElementById('homeSite').innerHTML = '\uD83D\uDCD8 <b>'+DATA.workbook+'</b>';
       document.getElementById('homeFoot').textContent =
-        'Loaded ' + (DATA.generated_at||'') + ' · ' + nStock + ' stock rows · ' + nPick + ' pick boxes';
-      toast('MK6 data loaded','ok');
-    }catch(e){ toast('Couldn\u2019t read that file — is it the MK6 JSON?','err'); }
+        'Loaded ' + (DATA.generated_at||'') + ' \u00b7 ' + nStock + ' stock rows \u00b7 ' + nPick + ' pick boxes';
+      toast(`MK6 data loaded \u00b7 ${nStock} stock \u00b7 ${nPick} picks`,'ok');
+    }catch(e){
+      toast('Loaded, but something went wrong reading the contents.','err');
+    }
   };
   rd.readAsText(f);
 }
@@ -426,7 +450,10 @@ async function submitPick(){
       actual_batch: s.na?'N/A':s.actual_batch, na:!!s.na, matched:!s.unknown
     }))
   };
-  const fname = 'MK6_pick_READY.json';
+  // name the pick file per-workbook so a test-workbook pick can't be imported
+  // into the live workbook (MK6 matches on this). Falls back to the generic name.
+  const stem = (DATA.workbook||'').replace(/\.[^.]+$/,'').replace(/[^A-Za-z0-9_-]/g,'_').slice(0,60);
+  const fname = stem ? `MK6_pick_READY__${stem}.json` : 'MK6_pick_READY.json';
   const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
   // 1) try the native Share sheet (lets you save straight into OneDrive)
   const file = new File([blob], fname, {type:'application/json'});
@@ -441,7 +468,7 @@ async function submitPick(){
   afterSubmit();
 }
 function afterSubmit(){
-  toast('✓ Pick saved as MK6_pick_READY.json — put it in your OneDrive folder','ok');
+  toast('✓ Pick saved as '+fname+' — put it in your OneDrive folder','ok');
   setTimeout(()=>{ resetPick(); go('home'); }, 1400);
 }
 

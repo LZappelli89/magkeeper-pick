@@ -2,258 +2,478 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>MagKeeper Pick</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a6ed1">
+<title>MagKeeper Pro 6 — Mobile</title>
 <style>
-:root{--bg:#0f1923;--card:#1a2d44;--card2:#1e3550;--border:rgba(255,255,255,0.09);--text:#ecf0f1;--text2:#8fa8b8;--teal:#1a8fa0;--teal2:#17a2b8;--green:#27ae60;--green2:#2ecc71;--gold:#e8872c;--red:#e74c3c;--warn:#f39c12;--radius:14px;--safe-top:env(safe-area-inset-top,0px);--safe-bot:env(safe-area-inset-bottom,0px)}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;overflow:hidden}
-#app{display:flex;flex-direction:column;height:100%;padding-top:var(--safe-top)}
-.topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:linear-gradient(135deg,#1a2d44 0%,#0f1923 100%);border-bottom:1px solid var(--border);flex-shrink:0}
-.topbar-logo{display:flex;align-items:center;gap:10px}
-.topbar-icon{background:var(--teal);color:white;font-weight:800;font-size:13px;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center}
-.topbar-title{font-size:16px;font-weight:700}
-.topbar-sub{font-size:11px;color:var(--text2);margin-top:1px}
-.session-pill{background:var(--teal);color:white;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;transition:background .2s}
-.toast{position:fixed;bottom:calc(80px + var(--safe-bot));left:50%;transform:translateX(-50%) translateY(20px);background:#2c3e50;color:var(--text);padding:10px 20px;border-radius:24px;font-size:13px;font-weight:600;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap;z-index:999}
-.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-.toast.err{background:var(--red)}
-.screen{display:none;flex-direction:column;flex:1;overflow:hidden}
-.screen.active{display:flex}
-.btn{border:none;border-radius:12px;font-family:inherit;cursor:pointer;font-weight:600;transition:opacity .15s,transform .1s;-webkit-user-select:none}
-.btn:active{transform:scale(0.96);opacity:.85}
-.btn-lg{font-size:17px;padding:16px 24px}
-.btn-md{font-size:14px;padding:12px 20px}
-.btn-sm{font-size:13px;padding:9px 16px}
-.btn-xs{font-size:12px;padding:6px 12px}
-.btn-full{width:100%}
-.btn-teal{background:var(--teal);color:white}
-.btn-green{background:var(--green);color:white}
-.btn-gold{background:var(--gold);color:white}
-.btn-red{background:var(--red);color:white}
-.btn-ghost{background:rgba(255,255,255,0.08);color:var(--text)}
-.btn-warn{background:var(--warn);color:white}
-.scroll-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px}
-.card{background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:12px;border:1px solid var(--border)}
-.card-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text2);margin-bottom:10px}
-/* Home */
-.home-wrap{display:flex;flex-direction:column;align-items:center;padding:28px 20px 20px;gap:14px;max-width:420px;margin:0 auto;width:100%}
-.home-icon{font-size:52px}
-.home-title{font-size:22px;font-weight:800;text-align:center}
-.home-sub{font-size:14px;color:var(--text2);text-align:center;line-height:1.5}
-.stat-row{display:flex;gap:10px;width:100%}
-.stat-box{flex:1;background:var(--card);border-radius:12px;padding:14px 12px;text-align:center;border:1px solid var(--border)}
-.stat-val{font-size:26px;font-weight:800}
-.stat-lbl{font-size:11px;color:var(--text2);margin-top:3px;text-transform:uppercase;letter-spacing:.05em}
-.stat-box.warn .stat-val{color:var(--warn)}
-.how-box{background:var(--card);border-radius:var(--radius);padding:14px 16px;width:100%;border:1px solid var(--border)}
-.how-box-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text2);margin-bottom:10px}
-.how-steps{display:flex;flex-direction:column;gap:8px}
-.how-step{display:flex;gap:12px;align-items:flex-start}
-.step-num{background:var(--teal);color:white;font-size:11px;font-weight:800;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
-.how-step p{font-size:13px;color:var(--text2);line-height:1.4}
-.how-step b{color:var(--text)}
-/* Scanner */
-.scanner{display:none;position:fixed;inset:0;z-index:200;background:var(--bg);flex-direction:column;padding-top:var(--safe-top)}
-.scanner.active{display:flex}
-.sc-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
-.sc-hdr-left h3{font-size:17px;font-weight:700}
-.sc-phase{font-size:12px;color:var(--teal2);margin-top:2px}
-.sc-body{flex:1;overflow-y:auto;padding:16px}
-.sc-counter{font-size:28px;font-weight:800;text-align:center;color:var(--teal);margin-bottom:4px}
-.sc-counter-sub{font-size:12px;color:var(--text2);text-align:center;margin-bottom:14px}
-.sc-mode-bar{display:flex;gap:8px;margin-bottom:14px}
-.sc-mode-btn{flex:1;padding:9px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text2);font-size:13px;font-family:inherit;cursor:pointer;transition:all .15s}
-.sc-mode-btn.active{background:var(--teal);color:white;border-color:var(--teal);font-weight:600}
-.sc-prompt{background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:12px;border:1px solid var(--border)}
-.sc-prompt-title{font-size:13px;font-weight:700;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em}
-.sc-input-wrap{display:flex;gap:8px}
-.sc-input{flex:1;background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;padding:12px 14px;font-family:inherit;outline:none}
-.sc-input:focus{border-color:var(--teal)}
-.sc-result{background:var(--card2);border-radius:var(--radius);padding:14px;margin-bottom:12px;border:1px solid var(--border);min-height:64px}
-.r-title{font-size:14px;font-weight:700;margin-bottom:4px}
-.r-info{font-size:12px;color:var(--text2);margin-top:3px}
-.r-flag{font-size:12px;color:var(--warn);margin-top:4px;font-weight:600}
-.r-ok{color:var(--green2)}
-.r-err{color:var(--red)}
-.sc-unrec-banner{background:rgba(243,156,18,0.12);border:1px solid rgba(243,156,18,0.3);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:var(--warn);display:none}
-.sc-history{margin-top:4px}
-.sc-hist-hdr{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text2);padding:6px 0 8px;margin-top:4px;display:flex;justify-content:space-between;align-items:center}
-.sc-hist-item{background:var(--card);border-radius:10px;padding:10px 14px;margin-bottom:6px;border:1px solid var(--border);display:flex;align-items:center;gap:10px}
-.sc-hist-dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0}
-.sc-hist-dot.warn{background:var(--warn)}
-.sc-hist-main{flex:1;min-width:0}
-.sc-hist-desc{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sc-hist-sub{font-size:11px;color:var(--text2);margin-top:2px}
-.sc-hist-del{background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;padding:4px 6px;border-radius:6px;flex-shrink:0}
-.sc-hist-del:active{color:var(--red)}
-#cameraWrap{position:relative;border-radius:var(--radius);overflow:hidden;background:#000;margin-bottom:12px;display:none}
-#cameraWrap video{width:100%;display:block;max-height:260px;object-fit:cover}
-.cam-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
-.cam-box{width:200px;height:200px;border:2px solid rgba(26,143,160,0.85);border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,0.45)}
-/* Review */
-.rev-order{background:var(--card);border-radius:var(--radius);margin-bottom:12px;border:1px solid var(--border);overflow:hidden}
-.rev-order-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer}
-.rev-order-hdr:active{background:rgba(255,255,255,0.04)}
-.rev-order-title{font-size:14px;font-weight:700}
-.rev-order-meta{font-size:11px;color:var(--text2);margin-top:3px}
-.rev-order-badge{background:var(--teal);color:white;font-size:11px;font-weight:700;padding:3px 9px;border-radius:10px;flex-shrink:0}
-.rev-order-badge.warn{background:var(--warn)}
-.rev-order-body{display:none;border-top:1px solid var(--border)}
-.rev-order-body.open{display:block}
-.rev-line{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border)}
-.rev-line:last-child{border-bottom:none}
-.rev-line-dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0}
-.rev-line-dot.warn{background:var(--warn)}
-.rev-line-main{flex:1;min-width:0}
-.rev-line-desc{font-size:13px;font-weight:600}
-.rev-line-sub{font-size:11px;color:var(--text2);margin-top:2px}
-.rev-line-del{background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;padding:4px 8px;border-radius:6px;flex-shrink:0}
-.rev-line-del:active{color:var(--red)}
-.rev-summary{background:var(--card);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px;border:1px solid var(--border)}
-.rev-sum-row{display:flex;justify-content:space-between;padding:4px 0;font-size:13px}
-.rev-sum-row span:last-child{font-weight:700;font-family:'SF Mono','Courier New',monospace}
-.rev-sum-flag{color:var(--warn);font-weight:700}
-.bnav{display:flex;gap:8px;padding:10px 16px;padding-bottom:calc(10px + var(--safe-bot));background:var(--card);border-top:1px solid var(--border);flex-shrink:0}
+  :root{
+    --sap-blue:#0a6ed1;--sap-blue-dark:#085cab;--sap-blue-2:#2f9bff;
+    --ink:#1a2e3a;--ink-soft:#5b6b76;--line:#e0e3e7;--bg:#eef1f4;--card:#fff;
+    --green:#107e3e;--green-soft:#e7f4ec;--amber:#e9a13b;--amber-soft:#fbf1e0;
+    --red:#bb0000;--red-soft:#fbe9e9;--purple:#8b52c4;
+    --shadow:0 2px 10px rgba(16,40,60,.08);--shadow-lg:0 8px 28px rgba(16,40,60,.16);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);overscroll-behavior:none;-webkit-font-smoothing:antialiased;}
+  .app{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;background:var(--bg);}
+  .topbar{background:linear-gradient(180deg,var(--sap-blue),var(--sap-blue-dark));color:#fff;
+    padding:14px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:20;
+    box-shadow:0 2px 8px rgba(8,92,171,.35);}
+  .topbar .badge{width:34px;height:34px;border-radius:8px;background:#fff;color:var(--sap-blue);
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;font-family:Georgia,serif;flex:0 0 auto;}
+  .topbar h1{font-size:16px;margin:0;font-weight:700;}
+  .topbar .sub{font-size:11px;opacity:.85;margin-top:1px;}
+  .topbar .back{background:rgba(255,255,255,.16);border:none;color:#fff;font-size:15px;width:34px;height:34px;border-radius:8px;font-weight:700;flex:0 0 auto;}
+  .topbar .spacer{flex:1;}
+  .conn{font-size:11px;font-weight:600;background:rgba(255,255,255,.16);padding:4px 9px;border-radius:20px;display:flex;align-items:center;gap:5px;}
+  .conn .dot{width:7px;height:7px;border-radius:50%;background:#ffb3b3;box-shadow:0 0 0 3px rgba(255,179,179,.25);}
+  .conn.on .dot{background:#8ff0a4;box-shadow:0 0 0 3px rgba(143,240,164,.25);}
+  .screen{flex:1;display:none;flex-direction:column;padding:16px;gap:14px;padding-bottom:32px;}
+  .screen.active{display:flex;animation:fade .25s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+  .home-hero{text-align:center;padding:22px 8px 6px;}
+  .home-hero .lock{font-size:40px;}
+  .home-hero h2{margin:10px 0 2px;font-size:20px;font-weight:800;}
+  .home-hero p{margin:0;color:var(--ink-soft);font-size:13px;}
+  .file-chip{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);
+    border-radius:12px;padding:12px 14px;box-shadow:var(--shadow);}
+  .file-chip .ic{font-size:20px;}
+  .file-chip .meta{flex:1;min-width:0;}
+  .file-chip .meta b{display:block;font-size:13px;}
+  .file-chip .meta span{display:block;font-size:11px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .file-chip button{background:none;border:1px solid var(--sap-blue);color:var(--sap-blue);border-radius:8px;padding:7px 12px;font-weight:700;font-size:12px;white-space:nowrap;}
+  .big-btns{display:flex;flex-direction:column;gap:14px;margin-top:4px;}
+  .big-btn{border:none;border-radius:18px;padding:26px 20px;text-align:left;color:#fff;box-shadow:var(--shadow-lg);
+    position:relative;overflow:hidden;display:flex;align-items:center;gap:16px;}
+  .big-btn:active{transform:scale(.985);}
+  .big-btn:disabled{opacity:.5;}
+  .big-btn .emoji{font-size:38px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.2));}
+  .big-btn .txt b{display:block;font-size:20px;font-weight:800;}
+  .big-btn .txt span{display:block;font-size:12.5px;opacity:.9;margin-top:3px;line-height:1.35;}
+  .big-btn .chev{position:absolute;right:18px;top:50%;transform:translateY(-50%);font-size:26px;opacity:.55;}
+  .big-btn.stock{background:linear-gradient(135deg,var(--sap-blue),var(--sap-blue-2));}
+  .big-btn.pick{background:linear-gradient(135deg,#0d8b46,#12a350);}
+  .home-foot{text-align:center;color:var(--ink-soft);font-size:11px;margin-top:auto;padding-top:18px;}
+  .sec-head{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .sec-head h3{margin:0;font-size:17px;font-weight:800;}
+  .sec-head .updated{font-size:11px;color:var(--ink-soft);}
+  .search{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;box-shadow:var(--shadow);}
+  .search input{border:none;outline:none;flex:1;font-size:14px;background:none;color:var(--ink);}
+  .search .ic{color:var(--ink-soft);font-size:15px;}
+  .stock-list{display:flex;flex-direction:column;gap:9px;}
+  .stock-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:var(--shadow);display:flex;align-items:center;gap:12px;}
+  .stock-card .qty{flex:0 0 auto;min-width:58px;text-align:center;border-radius:10px;padding:8px 6px;background:var(--sap-blue);color:#fff;}
+  .stock-card .qty b{display:block;font-size:19px;font-weight:800;line-height:1;}
+  .stock-card .qty span{display:block;font-size:9.5px;opacity:.85;margin-top:3px;text-transform:uppercase;letter-spacing:.4px;}
+  .stock-card.low .qty{background:var(--amber);}
+  .stock-card.out .qty{background:var(--red);}
+  .stock-card .info{flex:1;min-width:0;}
+  .stock-card .info b{display:block;font-size:14px;line-height:1.25;}
+  .stock-card .info .sub{font-size:11.5px;color:var(--ink-soft);margin-top:3px;}
+  .pill{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;margin-left:4px;}
+  .pill.b{background:#e8f1fb;color:var(--sap-blue);}
+  .pill.h{background:#f0e8fa;color:var(--purple);}
+  .scan-stage{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:16px;display:flex;flex-direction:column;gap:14px;}
+  .viewfinder{aspect-ratio:1/.7;border-radius:14px;position:relative;overflow:hidden;background:radial-gradient(circle at 50% 40%,#123 0%,#061019 100%);display:flex;align-items:center;justify-content:center;}
+  #camVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;}
+  .viewfinder .frame{width:64%;height:64%;border-radius:16px;position:relative;z-index:2;}
+  .viewfinder .frame::before,.viewfinder .frame::after,.viewfinder .frame i::before,.viewfinder .frame i::after{content:"";position:absolute;width:30px;height:30px;border:3px solid var(--sap-blue-2);}
+  .viewfinder .frame::before{top:0;left:0;border-right:none;border-bottom:none;border-radius:12px 0 0 0;}
+  .viewfinder .frame::after{top:0;right:0;border-left:none;border-bottom:none;border-radius:0 12px 0 0;}
+  .viewfinder .frame i::before{bottom:0;left:0;border-right:none;border-top:none;border-radius:0 0 0 12px;}
+  .viewfinder .frame i::after{bottom:0;right:0;border-left:none;border-top:none;border-radius:0 0 12px 0;}
+  .scanline{position:absolute;left:8%;right:8%;height:3px;border-radius:3px;background:linear-gradient(90deg,transparent,var(--sap-blue-2),transparent);box-shadow:0 0 12px var(--sap-blue-2);animation:scan 2s ease-in-out infinite;z-index:2;}
+  @keyframes scan{0%,100%{top:20%;}50%{top:78%;}}
+  .vf-hint{position:absolute;bottom:10px;left:0;right:0;text-align:center;color:#cfe6ff;font-size:11px;font-weight:600;z-index:3;}
+  .scan-prompt{display:flex;align-items:center;gap:12px;}
+  .scan-prompt .step-ic{width:44px;height:44px;border-radius:12px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:22px;background:var(--sap-blue);color:#fff;font-weight:800;}
+  .scan-prompt.batch .step-ic{background:var(--amber);}
+  .scan-prompt .step-txt b{display:block;font-size:15px;}
+  .scan-prompt .step-txt span{display:block;font-size:12px;color:var(--ink-soft);margin-top:2px;}
+  .looking-for{background:var(--green-soft);border:1px solid #bfe3cc;border-radius:12px;padding:12px 14px;display:none;align-items:center;gap:12px;}
+  .looking-for.show{display:flex;animation:fade .2s ease;}
+  .looking-for .lf-qty{flex:0 0 auto;text-align:center;background:var(--green);color:#fff;border-radius:10px;padding:8px 10px;min-width:60px;}
+  .looking-for .lf-qty b{display:block;font-size:18px;font-weight:800;line-height:1;}
+  .looking-for .lf-qty span{display:block;font-size:9px;margin-top:3px;text-transform:uppercase;letter-spacing:.4px;opacity:.9;}
+  .looking-for .lf-txt b{display:block;font-size:13.5px;}
+  .looking-for .lf-txt span{display:block;font-size:11.5px;color:#3d6b4f;margin-top:2px;}
+  .scan-input{display:flex;gap:8px;}
+  .scan-input input{flex:1;border:1px solid var(--line);border-radius:12px;padding:14px;font-size:15px;outline:none;}
+  .scan-input input:focus{border-color:var(--sap-blue);}
+  .scan-btn{border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--sap-blue),var(--sap-blue-2));box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;gap:10px;}
+  .scan-btn.batch{background:linear-gradient(135deg,#d68f2a,var(--amber));}
+  .scan-btn.ghost{background:var(--card);color:var(--ink);border:1px solid var(--line);box-shadow:none;}
+  .scan-btn:active{transform:scale(.985);}
+  .scan-btn:disabled{opacity:.5;}
+  .session{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden;}
+  .session .s-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#f6f8fa;border-bottom:1px solid var(--line);}
+  .session .s-head b{font-size:13px;}
+  .session .s-head .count{font-size:12px;color:var(--ink-soft);font-weight:600;}
+  .scan-row{display:flex;align-items:center;gap:11px;padding:11px 14px;border-bottom:1px solid #f0f2f4;}
+  .scan-row:last-child{border-bottom:none;}
+  .scan-row .r-ic{width:34px;height:34px;border-radius:9px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;background:var(--green-soft);color:var(--green);font-size:16px;font-weight:800;}
+  .scan-row .r-info{flex:1;min-width:0;}
+  .scan-row .r-info b{display:block;font-size:13px;line-height:1.2;}
+  .scan-row .r-info span{display:block;font-size:11px;color:var(--ink-soft);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .scan-row .r-qty{font-size:11px;font-weight:700;color:var(--sap-blue);flex:0 0 auto;background:#e8f1fb;padding:3px 8px;border-radius:20px;}
+  .scan-row .r-del{background:none;border:none;color:var(--red);font-size:18px;flex:0 0 auto;padding:4px 6px;}
+  .empty-session{padding:26px 16px;text-align:center;color:var(--ink-soft);font-size:13px;}
+  .empty-session .e-ic{font-size:30px;opacity:.5;}
+  .bottom-actions{display:flex;gap:10px;margin-top:2px;}
+  .btn{border:none;border-radius:12px;padding:15px;font-size:15px;font-weight:800;flex:1;}
+  .btn:active{transform:scale(.98);}
+  .btn.ghost{background:var(--card);color:var(--ink);border:1px solid var(--line);}
+  .btn.primary{background:linear-gradient(135deg,var(--green),#0d8b46);color:#fff;box-shadow:var(--shadow);}
+  .btn:disabled{opacity:.45;}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:26px;z-index:60;background:var(--ink);color:#fff;padding:12px 18px;border-radius:24px;font-size:13px;font-weight:600;box-shadow:var(--shadow-lg);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;max-width:88%;text-align:center;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px);}
+  .toast.warn{background:var(--amber);}
+  .toast.err{background:var(--red);}
+  .modal-wrap{position:fixed;inset:0;background:rgba(16,40,60,.5);z-index:70;display:none;align-items:flex-end;}
+  .modal-wrap.show{display:flex;animation:fade .2s ease;}
+  .modal{background:var(--card);width:100%;max-width:480px;margin:0 auto;border-radius:20px 20px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom));box-shadow:var(--shadow-lg);animation:slideup .28s cubic-bezier(.2,.9,.3,1);}
+  @keyframes slideup{from{transform:translateY(100%);}to{transform:none;}}
+  .modal h3{margin:0 0 4px;font-size:18px;}
+  .modal p{margin:0 0 16px;color:var(--ink-soft);font-size:13px;line-height:1.5;}
+  .review-list{max-height:40vh;overflow:auto;margin:0 0 16px;border:1px solid var(--line);border-radius:12px;}
+  .modal .grip{width:38px;height:4px;background:var(--line);border-radius:4px;margin:0 auto 14px;}
+  .warn-box{background:var(--amber-soft);border:1px solid #eccf9c;border-radius:12px;padding:12px 14px;font-size:12.5px;color:#8a5d12;margin-bottom:16px;display:flex;gap:10px;}
+  .warn-box .w-ic{font-size:18px;}
+  .toggle{display:flex;background:#eef1f4;border-radius:10px;padding:3px;gap:3px;}
+  .toggle button{flex:1;border:none;background:none;padding:8px;border-radius:8px;font-size:12px;font-weight:700;color:var(--ink-soft);}
+  .toggle button.on{background:#fff;color:var(--sap-blue);box-shadow:var(--shadow);}
 </style>
 </head>
 <body>
-<div id="app">
-<div class="topbar">
-  <div class="topbar-logo">
-    <div class="topbar-icon">MK</div>
-    <div><div class="topbar-title">MagKeeper Pick</div><div class="topbar-sub">Mobile Scan Companion</div></div>
+<div class="app">
+  <div class="topbar">
+    <button class="back" id="backBtn" style="display:none" onclick="go('home')">‹</button>
+    <div class="badge">MK</div>
+    <div><h1 id="tbTitle">MagKeeper Pro 6</h1><div class="sub" id="tbSub">Mobile · Field Picking</div></div>
+    <div class="spacer"></div>
+    <div class="conn" id="conn"><span class="dot"></span><span id="connTxt">No file</span></div>
   </div>
-  <div class="session-pill" id="sessionPill">0 scanned</div>
-</div>
-<div class="toast" id="toast"></div>
 
-<!-- HOME -->
-<div class="screen active" id="s-home">
-<div class="scroll-body"><div class="home-wrap">
-  <div class="home-icon">&#x1F4E6;</div>
-  <div class="home-title">Pick Companion</div>
-  <div class="home-sub">Scan QR labels and batch barcodes from the magazine. No pick list needed.</div>
-  <div class="stat-row" id="homeStats" style="display:none">
-    <div class="stat-box"><div class="stat-val" id="homeCount">0</div><div class="stat-lbl">Scans</div></div>
-    <div class="stat-box"><div class="stat-val" id="homeOrders">0</div><div class="stat-lbl">Orders</div></div>
-    <div class="stat-box warn" id="homeFlagBox" style="display:none"><div class="stat-val" id="homeFlags">0</div><div class="stat-lbl">Flagged</div></div>
+  <!-- HOME -->
+  <div class="screen active" id="scr-home">
+    <div class="home-hero"><div class="lock">🔒</div><h2>MagKeeper Pro 6</h2><p id="homeSite">Field companion</p></div>
+    <div class="file-chip">
+      <div class="ic">🔗</div>
+      <div class="meta"><b>MK6 data file</b><span id="fileName">Not loaded — tap Open</span></div>
+      <button onclick="pickFile()">Open</button>
+    </div>
+    <input type="file" id="fileInput" accept=".json,application/json" style="display:none" onchange="loadFile(event)">
+    <div class="big-btns">
+      <button class="big-btn stock" id="stockBtn" onclick="go('stock')" disabled>
+        <span class="emoji">📊</span>
+        <span class="txt"><b>Stock Levels</b><span id="stockBtnSub">Load the MK6 file to view stock</span></span>
+        <span class="chev">›</span>
+      </button>
+      <button class="big-btn pick" id="pickBtn" onclick="go('pick')" disabled>
+        <span class="emoji">📥</span>
+        <span class="txt"><b>Pick</b><span id="pickBtnSub">Load the MK6 file to start a pick</span></span>
+        <span class="chev">›</span>
+      </button>
+    </div>
+    <div class="home-foot" id="homeFoot">v1.0 · Point to the MK6 JSON in your shared folder to begin</div>
   </div>
-  <button class="btn btn-gold btn-lg btn-full" onclick="openScanner()">&#x26A1; Start Scanning</button>
-  <button class="btn btn-teal btn-md btn-full" id="btnReview" style="display:none" onclick="show('s-review')">&#x1F4CB; Review &amp; Submit</button>
-  <button class="btn btn-ghost btn-xs btn-full" id="btnClear" style="display:none" onclick="clearSession()">&#x2715; Clear Session</button>
-  <div class="how-box">
-    <div class="how-box-title">How it works</div>
-    <div class="how-steps">
-      <div class="how-step"><div class="step-num">1</div><p>Tap <b>Start Scanning</b></p></div>
-      <div class="how-step"><div class="step-num">2</div><p>Scan the <b>QR label</b> on each box</p></div>
-      <div class="how-step"><div class="step-num">3</div><p>Scan the <b>batch barcode</b> on the same box</p></div>
-      <div class="how-step"><div class="step-num">4</div><p>Undo or delete individual scans if wrong</p></div>
-      <div class="how-step"><div class="step-num">5</div><p>Tap <b>Review &amp; Submit</b> to save JSON to shared drive</p></div>
-      <div class="how-step"><div class="step-num">6</div><p>On desktop: <b>Pick/Deliver &#x2192; Mobile Pick &#x2192; Upload</b></p></div>
+
+  <!-- STOCK -->
+  <div class="screen" id="scr-stock">
+    <div class="sec-head"><h3>Stock Levels</h3><div class="updated" id="stockUpdated"></div></div>
+    <div class="search"><span class="ic">🔍</span><input id="stockSearch" placeholder="Search product or magazine…" oninput="renderStock()"></div>
+    <div class="stock-list" id="stockList"></div>
+  </div>
+
+  <!-- PICK -->
+  <div class="screen" id="scr-pick">
+    <div class="sec-head"><h3 id="pickTitle">New Pick</h3><div class="updated" id="pickOrderLbl"></div></div>
+    <div class="toggle" id="modeToggle">
+      <button id="modeScanner" class="on" onclick="setMode('scanner')">⌨︎ Bluetooth scanner</button>
+      <button id="modeCamera" onclick="setMode('camera')">📷 Camera</button>
+    </div>
+    <div class="scan-stage">
+      <div class="viewfinder" id="viewfinder">
+        <video id="camVideo" playsinline muted></video>
+        <div class="frame"><i></i></div><div class="scanline"></div>
+        <div class="vf-hint" id="vfHint">Scan the box QR</div>
+      </div>
+      <div class="scan-prompt" id="scanPrompt">
+        <div class="step-ic" id="stepIc">1</div>
+        <div class="step-txt"><b id="stepTitle">Scan box QR</b><span id="stepSub">The label identifies the exact pick line</span></div>
+      </div>
+      <div class="looking-for" id="lookingFor">
+        <div class="lf-qty"><b id="lfQty">1</b><span id="lfUnit">box</span></div>
+        <div class="lf-txt"><b id="lfProduct">—</b><span id="lfNext">Now scan the batch barcode on this box</span></div>
+      </div>
+      <div class="scan-input" id="scanInputWrap">
+        <input id="scanInput" placeholder="Scan or type here…" autocomplete="off" autocapitalize="off" spellcheck="false"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();onScan(this.value);this.value='';}">
+        <button class="scan-btn ghost" style="flex:0 0 auto;padding:14px 16px" onclick="onScan(document.getElementById('scanInput').value);document.getElementById('scanInput').value='';">Enter</button>
+      </div>
+    </div>
+    <div class="session">
+      <div class="s-head"><b>This pick session</b><span class="count" id="sessCount">0 items</span></div>
+      <div id="sessList"><div class="empty-session"><div class="e-ic">📭</div><div>No boxes scanned yet.<br>Scan a box QR to begin.</div></div></div>
+    </div>
+    <div class="bottom-actions">
+      <button class="btn ghost" onclick="resetPick()">Clear</button>
+      <button class="btn primary" id="submitBtn" onclick="openReview()" disabled>Review &amp; submit</button>
     </div>
   </div>
-</div></div>
-</div>
 
-<!-- REVIEW -->
-<div class="screen" id="s-review">
-<div class="scroll-body">
-  <div class="card-title" style="padding-top:4px">Session Summary</div>
-  <div class="rev-summary" id="revSummary"></div>
-  <div class="card-title">Scans by Order</div>
-  <div id="reviewList"></div>
-</div>
-<div class="bnav">
-  <button class="btn btn-ghost btn-sm" onclick="show('s-home')">&#x2190; Home</button>
-  <button class="btn btn-teal btn-sm" onclick="openScanner()">&#x26A1; More Scans</button>
-  <button class="btn btn-green btn-sm" id="submitBtn" onclick="submitSession()" style="flex:1">&#x2713; Submit &amp; Save</button>
-</div>
-</div>
-
-<!-- SCANNER -->
-<div class="scanner" id="scanner">
-<div class="sc-hdr">
-  <div class="sc-hdr-left">
-    <h3 id="scTitle">Scan Label</h3>
-    <div class="sc-phase" id="scPhase">Scan the QR code on the label</div>
-  </div>
-  <button class="btn btn-ghost btn-sm" onclick="closeScanner()">&#x2713; Done</button>
-</div>
-<div class="sc-body">
-  <div class="sc-counter" id="scCount">0</div>
-  <div class="sc-counter-sub" id="scCountSub">pairs collected this session</div>
-  <div class="sc-mode-bar">
-    <button class="sc-mode-btn active" id="modeBT" onclick="setScanMode('bt')">&#x2328; Bluetooth / Type</button>
-    <button class="sc-mode-btn" id="modeCam" onclick="setScanMode('cam')">&#x1F4F7; Camera</button>
-  </div>
-  <div id="cameraWrap">
-    <video id="camVideo" autoplay playsinline muted></video>
-    <div class="cam-overlay"><div class="cam-box"></div></div>
-  </div>
-  <div class="sc-prompt" id="scPrompt">
-    <div class="sc-prompt-title" id="scPromptTitle">Step 1 &mdash; QR Code</div>
-    <div class="sc-input-wrap">
-      <input class="sc-input" id="scIn" type="text" autocomplete="off" autocorrect="off"
-             autocapitalize="characters" spellcheck="false" placeholder="Scan or type here&hellip;"
-             onkeydown="onKey(event)">
-      <button class="btn btn-teal btn-sm" onclick="doScan()">&#x2192;</button>
+  <div class="modal-wrap" id="reviewModal">
+    <div class="modal">
+      <div class="grip"></div>
+      <h3>Review pick</h3>
+      <p id="reviewSub">Confirm the boxes you've scanned before submitting.</p>
+      <div class="warn-box" id="reviewWarn" style="display:none"><span class="w-ic">⚠️</span><span id="reviewWarnTxt"></span></div>
+      <div class="review-list" id="reviewList"></div>
+      <div class="bottom-actions" style="margin-top:0">
+        <button class="btn ghost" onclick="closeReview()">Back</button>
+        <button class="btn primary" onclick="submitPick()">Submit pick</button>
+      </div>
     </div>
   </div>
-  <div class="sc-result" id="scRes"><div style="color:var(--text2);font-size:13px">Awaiting scan&hellip;</div></div>
-  <div class="sc-unrec-banner" id="unrecBanner">
-    &#x26A0; Unrecognised QR &mdash; captured as unknown. Scan the batch barcode to continue, or scan a new QR to retry.
-  </div>
-  <div id="undoRow" style="display:none;margin-bottom:12px">
-    <button class="btn btn-warn btn-sm btn-full" onclick="undoLast()">&#x21A9; Undo Last</button>
-  </div>
-  <div class="sc-history">
-    <div class="sc-hist-hdr">
-      <span>Recent Scans</span>
-      <span id="scHistCount" style="color:var(--teal);font-size:12px"></span>
-    </div>
-    <div id="scHistList"></div>
-  </div>
-</div>
+  <div class="toast" id="toast"></div>
 </div>
 
-</div>
 <script>
-var session=[];var phase='qr';var currentQR=null;var scanMode='bt';
-var camStream=null;var camAnimId=null;var lastCamCode='';var camCooldown=false;
-var SESSION_KEY='mk_scan_v3';
-function saveSession(){try{localStorage.setItem(SESSION_KEY,JSON.stringify(session));}catch(e){}}
-function loadSession(){try{var s=localStorage.getItem(SESSION_KEY);if(s)session=JSON.parse(s);}catch(e){session=[];}}
-function show(id){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});document.getElementById(id).classList.add('active');if(id==='s-review')renderReview();if(id==='s-home')updateHomeUI();}
-function toast(msg,ms,err){var t=document.getElementById('toast');t.textContent=msg;t.className='toast show'+(err?' err':'');setTimeout(function(){t.className='toast';},ms||2200);}
-function vibe(p){try{navigator.vibrate&&navigator.vibrate(p);}catch(e){}}
-function parseQR(raw){var s=raw.trim().toUpperCase();if(s.indexOf('MKPK:')!==0)return null;var parts=s.split(':');if(parts.length>=5){var qt=parts[parts.length-1];var sc=parts[parts.length-2];var oid=parts.slice(1,parts.length-2).join(':');return{order_id:oid,sap_code:sc,qty_type:qt,raw:raw,unrecognised:false,legacy:false};}else if(parts.length===4){return{order_id:parts[1],sap_code:parts[2],qty_type:parts[3],raw:raw,unrecognised:false,legacy:false};}else if(parts.length===3){return{order_id:'',sap_code:parts[1],qty_type:parts[2],raw:raw,unrecognised:false,legacy:true};}return null;}
-function openScanner(){phase='qr';currentQR=null;document.getElementById('scanner').classList.add('active');updateScannerUI();document.getElementById('unrecBanner').style.display='none';document.getElementById('scRes').innerHTML='<div style="color:var(--text2);font-size:13px">Awaiting scan\u2026</div>';renderHistory();if(scanMode==='bt')setTimeout(focusInput,120);else startCam();}
-function closeScanner(){document.getElementById('scanner').classList.remove('active');stopCam();updateHomeUI();show('s-home');}
-function focusInput(){var el=document.getElementById('scIn');if(el){el.value='';el.focus();}}
-function onKey(e){if(e.key==='Enter')doScan();}
-function doScan(){var inp=document.getElementById('scIn');var val=inp.value.trim().toUpperCase();if(!val)return;inp.value='';if(phase==='qr')handleQRScan(val);else handleBatchScan(val);if(scanMode==='bt')setTimeout(focusInput,60);}
-function handleQRScan(val){var res=document.getElementById('scRes');var banner=document.getElementById('unrecBanner');banner.style.display='none';var parsed=parseQR(val);if(parsed){currentQR=parsed;phase='batch';vibe([30]);var ol=parsed.order_id||'(no order ID)';res.innerHTML='<div class="r-title r-ok">\u2713 QR scanned</div><div class="r-info">SAP: '+parsed.sap_code+'</div><div class="r-info">Order: '+ol+'</div><div class="r-info">Qty: '+parsed.qty_type+'</div>'+(parsed.legacy?'<div class="r-flag">\u26A0 Legacy QR \u2014 no order ID</div>':'');}else if(val.indexOf('MKPK:')===0){res.innerHTML='<div class="r-title r-err">\u26A0 Malformed QR \u2014 try again</div>';}else{currentQR={order_id:'',sap_code:'',qty_type:'',raw:val,unrecognised:true};phase='batch';banner.style.display='block';vibe([20,40,20]);res.innerHTML='<div class="r-title r-flag">\u26A0 Unrecognised \u2014 scan batch to continue</div>';}updateScannerUI();}
-function handleBatchScan(val){if(!currentQR){toast('Scan a QR label first',2000,true);return;}if(!val){toast('Empty scan',2000,true);return;}if(val.indexOf('MKPK:')===0){toast('That looks like a QR \u2014 scan the BATCH barcode',2500,true);return;}var entry={order_id:currentQR.order_id,sap_code:currentQR.sap_code,qty_type:currentQR.qty_type,batch_scanned:val,unrecognised:currentQR.unrecognised,raw:currentQR.raw,ts:new Date().toISOString()};session.push(entry);saveSession();vibe([40,30,80]);document.getElementById('unrecBanner').style.display='none';var bs=val.length>20?val.substring(0,20)+'\u2026':val;var res=document.getElementById('scRes');if(currentQR.unrecognised){res.innerHTML='<div class="r-title r-flag">\u26A0 Captured (unrecognised)</div><div class="r-info">Batch: '+bs+'</div>';}else{res.innerHTML='<div class="r-title r-ok">\u2713 Pair recorded</div><div class="r-info">Batch: '+bs+'</div><div class="r-info">SAP: '+currentQR.sap_code+' | Order: '+(currentQR.order_id||'n/a')+'</div>';toast('\u2713 Scanned',1400);}phase='qr';currentQR=null;renderHistory();updateScannerUI();updateSessionPill();}
-function undoLast(){if(!session.length&&phase==='qr'){toast('Nothing to undo',2000,true);return;}if(phase==='batch'){phase='qr';currentQR=null;document.getElementById('unrecBanner').style.display='none';document.getElementById('scRes').innerHTML='<div style="color:var(--text2);font-size:13px">Cancelled \u2014 scan QR again</div>';updateScannerUI();toast('Cancelled',1800);return;}var removed=session.pop();saveSession();renderHistory();updateScannerUI();updateSessionPill();var desc=removed.sap_code||removed.raw||'unknown';toast('Undone: '+desc.substring(0,20),2000);document.getElementById('scRes').innerHTML='<div class="r-title" style="color:var(--warn)">\u21A9 Undone</div><div class="r-info">Removed: '+desc.substring(0,30)+'</div><div class="r-info">Batch: '+(removed.batch_scanned||'\u2014')+'</div>';}
-function deleteScanAt(idx){if(idx<0||idx>=session.length)return;session.splice(idx,1);saveSession();renderHistory();updateScannerUI();updateSessionPill();toast('Deleted',1600);}
-function updateScannerUI(){var ti=document.getElementById('scTitle');var ph=document.getElementById('scPhase');var pt=document.getElementById('scPromptTitle');var ur=document.getElementById('undoRow');var inp=document.getElementById('scIn');if(phase==='qr'){ti.textContent='Scan Label';ph.textContent='Step 1 \u2014 Scan the QR code on the label';pt.textContent='Step 1 \u2014 QR Code';inp.placeholder='Scan QR label\u2026';}else{ti.textContent='Scan Batch';ph.textContent='Step 2 \u2014 Now scan the batch barcode on the same box';pt.textContent='Step 2 \u2014 Batch Barcode';inp.placeholder='Scan batch barcode\u2026';}ur.style.display=(session.length>0||phase==='batch')?'block':'none';document.getElementById('scCount').textContent=session.length;document.getElementById('scCountSub').textContent=session.length===1?'pair collected':'pairs collected this session';document.getElementById('scHistCount').textContent=session.length?session.length+' total':'';}
-function renderHistory(){var list=document.getElementById('scHistList');if(!session.length){list.innerHTML='<div style="font-size:13px;color:var(--text2);padding:8px 0">No scans yet</div>';return;}var recent=session.slice().reverse().slice(0,8);var startIdx=session.length-1;list.innerHTML=recent.map(function(s,ri){var idx=startIdx-ri;var desc=s.sap_code?('SAP '+s.sap_code):(s.raw?s.raw.substring(0,18):'?');var bs=s.batch_scanned?(s.batch_scanned.length>16?s.batch_scanned.substring(0,16)+'\u2026':s.batch_scanned):'\u2014';var dc=s.unrecognised?'sc-hist-dot warn':'sc-hist-dot';return'<div class="sc-hist-item"><div class="'+dc+'"></div><div class="sc-hist-main"><div class="sc-hist-desc">'+desc+(s.order_id?' | '+s.order_id.substring(0,20):'')+'</div><div class="sc-hist-sub">Batch: '+bs+'</div></div><button class="sc-hist-del" onclick="deleteScanAt('+idx+')">&#x00D7;</button></div>';}).join('');}
-function renderReview(){var flags=session.filter(function(s){return s.unrecognised;}).length;var orders={};session.forEach(function(s,idx){var oid=s.order_id||'__unknown__';if(!orders[oid])orders[oid]=[];orders[oid].push({s:s,idx:idx});});var ss=document.getElementById('revSummary');ss.innerHTML='<div class="rev-sum-row"><span>Total scans</span><span>'+session.length+'</span></div><div class="rev-sum-row"><span>Orders covered</span><span>'+Object.keys(orders).length+'</span></div>'+(flags?'<div class="rev-sum-row"><span class="rev-sum-flag">\u26A0 Flagged (unrecognised)</span><span class="rev-sum-flag">'+flags+'</span></div>':'');var list=document.getElementById('reviewList');if(!session.length){list.innerHTML='<div style="font-size:14px;color:var(--text2);padding:20px 0;text-align:center">No scans yet</div>';document.getElementById('submitBtn').disabled=true;return;}document.getElementById('submitBtn').disabled=false;var html='';Object.keys(orders).forEach(function(oid,oi){var items=orders[oid];var hasFlag=items.some(function(x){return x.s.unrecognised;});var label=oid==='__unknown__'?'\u26A0 Unknown Order':oid;var bodyId='og_'+oi;html+='<div class="rev-order"><div class="rev-order-hdr" onclick="toggleGroup(\''+bodyId+'\')"><div><div class="rev-order-title">'+label+'</div><div class="rev-order-meta">'+items.length+' scan'+(items.length!==1?'s':'')+'</div></div><div style="display:flex;align-items:center;gap:8px"><span class="rev-order-badge'+(hasFlag?' warn':'')+'">'+items.length+'</span><span style="color:var(--text2);font-size:18px">&#x203A;</span></div></div><div class="rev-order-body" id="'+bodyId+'">';items.forEach(function(x){var s=x.s;var dc=s.unrecognised?'rev-line-dot warn':'rev-line-dot';var desc=s.sap_code?('SAP '+s.sap_code):(s.raw||'?');var bs=s.batch_scanned||'\u2014';html+='<div class="rev-line"><div class="'+dc+'"></div><div class="rev-line-main"><div class="rev-line-desc">'+desc+'</div><div class="rev-line-sub">Batch: '+bs+' | '+s.qty_type+'</div></div><button class="rev-line-del" onclick="deleteFromReview('+x.idx+')">&#x00D7;</button></div>';});html+='</div></div>';});list.innerHTML=html;if(Object.keys(orders).length===1){var el=document.getElementById('og_0');if(el)el.classList.add('open');}}
-function toggleGroup(id){var el=document.getElementById(id);if(el)el.classList.toggle('open');}
-function deleteFromReview(idx){if(idx<0||idx>=session.length)return;session.splice(idx,1);saveSession();renderReview();updateSessionPill();toast('Deleted',1600);}
-function submitSession(){if(!session.length){toast('Nothing to submit',2000,true);return;}var flags=session.filter(function(s){return s.unrecognised;}).length;var nOrders=new Set(session.map(function(s){return s.order_id||'?';})).size;var msg='Submit '+session.length+' scan(s) across '+nOrders+' order(s)?';if(flags)msg+='\n\n\u26A0 '+flags+' scan(s) are flagged as unrecognised.';if(!confirm(msg))return;var ts=new Date();var fname='MK_Pick_'+ts.toISOString().replace(/[:.]/g,'-').substring(0,19)+'.json';var sid='PL-'+ts.getFullYear().toString().substring(2)+String(ts.getMonth()+1).padStart(2,'0')+String(ts.getDate()).padStart(2,'0')+'-'+String(ts.getHours()).padStart(2,'0')+String(ts.getMinutes()).padStart(2,'0')+String(ts.getSeconds()).padStart(2,'0');var payload={version:2,session_id:sid,submitted_at:ts.toISOString(),device:navigator.userAgent.substring(0,80),scans:session};var jsonStr=JSON.stringify(payload,null,2);var blob=new Blob([jsonStr],{type:'application/json'});var file=new File([blob],fname,{type:'application/json'});if(navigator.canShare&&navigator.canShare({files:[file]})){navigator.share({files:[file],title:'MagKeeper Pick Results',text:fname}).then(function(){afterSubmit(fname,sid);}).catch(function(e){if(e.name!=='AbortError')fallbackDownload(blob,fname,sid);});}else{fallbackDownload(blob,fname,sid);}}
-function fallbackDownload(blob,fname,sid){var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download=fname;a.click();setTimeout(function(){URL.revokeObjectURL(url);},3000);afterSubmit(fname,sid);toast('Downloaded \u2014 move to shared drive',3500);}
-function afterSubmit(fname,sid){session.forEach(function(s){s._submitted=true;s._session_id=sid;});saveSession();updateHomeUI();show('s-home');toast('\u2713 Submitted: '+fname,3000);setTimeout(function(){if(confirm('Submission saved.\n\nClear the session now to start fresh?'))clearSession();},800);}
-function updateHomeUI(){var count=session.length;var flags=session.filter(function(s){return s.unrecognised;}).length;var orders=new Set(session.map(function(s){return s.order_id||'__u';})).size;document.getElementById('homeStats').style.display=count?'flex':'none';document.getElementById('homeCount').textContent=count;document.getElementById('homeOrders').textContent=orders;document.getElementById('homeFlagBox').style.display=flags?'flex':'none';document.getElementById('homeFlags').textContent=flags;document.getElementById('btnReview').style.display=count?'block':'none';document.getElementById('btnClear').style.display=count?'block':'none';updateSessionPill();}
-function updateSessionPill(){var pill=document.getElementById('sessionPill');pill.textContent=session.length+' scanned';pill.style.background=session.length?'var(--teal)':'rgba(255,255,255,0.15)';}
-function clearSession(){if(session.length&&!confirm('Clear all '+session.length+' scans?\nThis cannot be undone.'))return;session=[];saveSession();updateHomeUI();toast('Session cleared',1800);}
-function setScanMode(mode){scanMode=mode;document.getElementById('modeBT').classList.toggle('active',mode==='bt');document.getElementById('modeCam').classList.toggle('active',mode==='cam');document.getElementById('cameraWrap').style.display=mode==='cam'?'block':'none';document.getElementById('scPrompt').style.display=mode==='bt'?'block':'none';if(mode==='cam')startCam();else{stopCam();setTimeout(focusInput,80);}}
-function startCam(){if(!window.BarcodeDetector){toast('Camera scan not supported on this browser',3000,true);setScanMode('bt');return;}if(camStream)return;navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}}).then(function(stream){camStream=stream;var v=document.getElementById('camVideo');v.srcObject=stream;document.getElementById('cameraWrap').style.display='block';var det=new BarcodeDetector({formats:['qr_code','code_128','code_39','ean_13','ean_8','upc_a','upc_e','data_matrix']});function tick(){if(!camStream)return;det.detect(v).then(function(codes){if(codes.length&&!camCooldown){var val=codes[0].rawValue.trim().toUpperCase();if(val!==lastCamCode){lastCamCode=val;camCooldown=true;vibe([20]);if(phase==='qr')handleQRScan(val);else handleBatchScan(val);setTimeout(function(){camCooldown=false;lastCamCode='';},1500);}}}).catch(function(){});camAnimId=requestAnimationFrame(tick);}camAnimId=requestAnimationFrame(tick);}).catch(function(err){toast('Camera error: '+err.message,3000,true);setScanMode('bt');});}
-function stopCam(){if(camAnimId){cancelAnimationFrame(camAnimId);camAnimId=null;}if(camStream){camStream.getTracks().forEach(function(t){t.stop();});camStream=null;}document.getElementById('cameraWrap').style.display='none';}
-loadSession();updateHomeUI();
+/* ══════════════════════════════════════════════════════════════════════
+   MK6 Mobile — reads the MK6 data JSON, runs the pick, writes a pick file.
+   Scanner-first (Bluetooth scanner types the code + Enter); camera fallback.
+   QR label format:  MK6|<order>|L<line>|B<box>|<sap>|<batch>
+   ══════════════════════════════════════════════════════════════════════ */
+
+let DATA = null;            // parsed MK6 export {stock, pick_items, ...}
+let itemsById = {};         // label_id -> pick item
+let mode = 'scanner';
+let stage = 'qr';           // qr | batch
+let pendingItem = null;     // QR scanned, awaiting batch
+let session = [];           // [{...item, actual_batch, na}]
+let seen = new Set();       // label_ids already captured (no double scan)
+let camStream = null;
+
+/* ── file load ── */
+function pickFile(){ document.getElementById('fileInput').click(); }
+function loadFile(ev){
+  const f = ev.target.files[0]; if(!f) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    try{
+      DATA = JSON.parse(rd.result);
+      if(DATA.kind && DATA.kind!=='mk6_mobile_data') throw new Error('not an MK6 file');
+      itemsById = {};
+      (DATA.pick_items||[]).forEach(it=>itemsById[it.label_id]=it);
+      document.getElementById('fileName').textContent = f.name;
+      document.getElementById('conn').classList.add('on');
+      document.getElementById('connTxt').textContent = 'Linked';
+      document.getElementById('stockBtn').disabled = false;
+      document.getElementById('pickBtn').disabled = false;
+      const nStock=(DATA.stock||[]).length, nPick=(DATA.pick_items||[]).length;
+      document.getElementById('stockBtnSub').textContent = `${nStock} product/magazine rows`;
+      document.getElementById('pickBtnSub').textContent = nPick ? `${nPick} boxes across pending orders` : 'No pending picks right now';
+      if(DATA.workbook) document.getElementById('homeSite').textContent = DATA.workbook;
+      document.getElementById('homeFoot').textContent =
+        'Loaded ' + (DATA.generated_at||'') + ' · ' + nStock + ' stock rows · ' + nPick + ' pick boxes';
+      toast('MK6 data loaded','ok');
+    }catch(e){ toast('Couldn\u2019t read that file — is it the MK6 JSON?','err'); }
+  };
+  rd.readAsText(f);
+}
+
+/* ── nav ── */
+function go(scr){
+  if((scr==='stock'||scr==='pick') && !DATA){ toast('Open the MK6 file first','warn'); return; }
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('scr-'+scr).classList.add('active');
+  const back=document.getElementById('backBtn'), title=document.getElementById('tbTitle'), sub=document.getElementById('tbSub');
+  if(scr==='home'){ back.style.display='none'; title.textContent='MagKeeper Pro 6'; sub.textContent='Mobile · Field Picking'; stopCam(); }
+  else back.style.display='flex';
+  if(scr==='stock'){ title.textContent='Stock Levels'; sub.textContent='From MK6'; renderStock();
+    document.getElementById('stockUpdated').textContent = DATA.generated_at ? ('Updated '+DATA.generated_at.replace('T',' ').slice(0,16)) : ''; }
+  if(scr==='pick'){ title.textContent='Pick'; sub.textContent='Scan · Review · Submit'; setStage('qr');
+    if(mode==='scanner') setTimeout(()=>document.getElementById('scanInput').focus(),200); }
+  window.scrollTo(0,0);
+}
+
+/* ── stock ── */
+function renderStock(){
+  const q=(document.getElementById('stockSearch').value||'').toLowerCase();
+  const list=document.getElementById('stockList');
+  const rows=(DATA.stock||[]).filter(s=>(s.product+' '+s.magazine).toLowerCase().includes(q));
+  if(!rows.length){ list.innerHTML='<div class="empty-session"><div class="e-ic">🔍</div><div>No matches.</div></div>'; return; }
+  list.innerHTML = rows.map(s=>{
+    const qty = s.total!=null?s.total:s.onhand;
+    const cls = qty===0?'out':(qty<=10?'low':'');
+    const harts = /^H/i.test(s.magazine||'');
+    const pill = harts?'<span class="pill h">Harts</span>':'<span class="pill b">Belivah</span>';
+    return `<div class="stock-card ${cls}"><div class="qty"><b>${Number(qty).toLocaleString()}</b><span>pc</span></div>
+      <div class="info"><b>${s.product}</b><div class="sub">${s.magazine} ${pill}</div></div></div>`;
+  }).join('');
+}
+
+/* ── pick flow ── */
+function setMode(m){
+  mode=m;
+  document.getElementById('modeScanner').classList.toggle('on',m==='scanner');
+  document.getElementById('modeCamera').classList.toggle('on',m==='camera');
+  document.getElementById('scanInputWrap').style.display = m==='scanner'?'flex':'none';
+  if(m==='camera'){ startCam(); } else { stopCam(); setTimeout(()=>document.getElementById('scanInput').focus(),150); }
+}
+function setStage(s){
+  stage=s;
+  const ic=document.getElementById('stepIc'),t=document.getElementById('stepTitle'),sub=document.getElementById('stepSub');
+  const prompt=document.getElementById('scanPrompt'),vf=document.getElementById('vfHint'),lf=document.getElementById('lookingFor');
+  const inp=document.getElementById('scanInput');
+  if(s==='qr'){ ic.textContent='1'; prompt.classList.remove('batch'); t.textContent='Scan box QR';
+    sub.textContent='The box label identifies the exact pick line'; vf.textContent='Scan the box QR sticker';
+    lf.classList.remove('show'); if(inp) inp.placeholder='Scan box QR…'; }
+  if(s==='batch'){ ic.textContent='2'; prompt.classList.add('batch'); t.textContent='Scan batch barcode';
+    sub.textContent='Capture the real batch on this box'; vf.textContent='Scan the batch barcode';
+    lf.classList.add('show'); if(inp) inp.placeholder='Scan batch barcode (or type NA)…'; }
+  if(mode==='scanner' && inp) setTimeout(()=>inp.focus(),100);
+}
+
+/* the one entry point for a scan, whether from BT scanner, camera, or typing */
+function onScan(raw){
+  const val=(raw||'').trim(); if(!val) return;
+  if(stage==='qr'){
+    // must be an MK6 box QR
+    if(!val.startsWith('MK6|')){ toast('That\u2019s not a box QR — scan the MK6 label','err'); return; }
+    if(seen.has(val)){ toast('That box was already scanned','err'); return; }
+    const item = itemsById[val];
+    if(!item){
+      // unknown label — still allow capture so nothing is lost; MK6 flags it on import
+      pendingItem = {label_id:val, product:'Unknown item', qty_text:'?', expected_batch:'', order_id:(val.split('|')[1]||''), unknown:true};
+    } else {
+      pendingItem = {...item};
+    }
+    const isFull=(pendingItem.qty_text||'').toLowerCase().includes('full');
+    document.getElementById('lfQty').textContent = isFull?'1':(pendingItem.qty_text||'').replace(/[^0-9]/g,'')||'?';
+    document.getElementById('lfUnit').textContent = isFull?'box':'pc';
+    document.getElementById('lfProduct').textContent = pendingItem.product||'—';
+    document.getElementById('lfNext').textContent = 'Now scan the batch barcode on this box';
+    if(pendingItem.order_id){ document.getElementById('pickTitle').textContent='Picking '+pendingItem.order_id;
+      document.getElementById('pickOrderLbl').textContent=pendingItem.order_id; }
+    setStage('batch');
+    return;
+  }
+  if(stage==='batch'){
+    const na = val.toUpperCase()==='NA' || val.toUpperCase()==='N/A';
+    session.push({...pendingItem, actual_batch: na?'N/A':val, na});
+    seen.add(pendingItem.label_id);
+    pendingItem=null;
+    renderSession();
+    toast('✓ captured','ok');
+    setStage('qr');   // straight into the next box
+  }
+}
+
+function renderSession(){
+  const list=document.getElementById('sessList'), count=document.getElementById('sessCount'), submit=document.getElementById('submitBtn');
+  count.textContent = session.length + (session.length===1?' item':' items');
+  submit.disabled = session.length===0;
+  if(!session.length){ list.innerHTML='<div class="empty-session"><div class="e-ic">📭</div><div>No boxes scanned yet.<br>Scan a box QR to begin.</div></div>'; return; }
+  list.innerHTML = session.map((s,i)=>{
+    const isFull=(s.qty_text||'').toLowerCase().includes('full');
+    const qtyPill = isFull?'FULL box':(s.qty_text||'');
+    const warn = s.unknown?' style="background:var(--amber-soft);color:#a9741f"':'';
+    return `<div class="scan-row"><div class="r-ic"${warn}>${s.unknown?'?':'✓'}</div>
+      <div class="r-info"><b>${s.product}</b><span>${(s.order_id||'')} · batch ${s.actual_batch}</span></div>
+      <div class="r-qty">${qtyPill}</div><button class="r-del" onclick="delScan(${i})">🗑</button></div>`;
+  }).join('');
+}
+function delScan(i){ seen.delete(session[i].label_id); session.splice(i,1); renderSession(); toast('Removed — you can re-scan it','warn'); }
+function resetPick(){ session=[]; pendingItem=null; seen.clear();
+  document.getElementById('pickTitle').textContent='New Pick'; document.getElementById('pickOrderLbl').textContent='';
+  setStage('qr'); renderSession(); }
+
+/* ── review + submit ── */
+function openReview(){
+  const list=document.getElementById('reviewList'),warn=document.getElementById('reviewWarn'),warnTxt=document.getElementById('reviewWarnTxt');
+  list.innerHTML = session.map(s=>{
+    const isFull=(s.qty_text||'').toLowerCase().includes('full');
+    return `<div class="scan-row"><div class="r-ic">${s.unknown?'?':'✓'}</div>
+      <div class="r-info"><b>${s.product}</b><span>${s.order_id||''} · batch ${s.actual_batch}</span></div>
+      <div class="r-qty">${isFull?'FULL':(s.qty_text||'')}</div></div>`;
+  }).join('');
+  const totalPending=(DATA.pick_items||[]).length;
+  const remaining=totalPending - session.filter(s=>!s.unknown).length;
+  const unknowns=session.filter(s=>s.unknown).length;
+  let w='';
+  if(remaining>0) w += `${remaining} of ${totalPending} pending box(es) not scanned. `;
+  if(unknowns>0) w += `${unknowns} scan(s) didn\u2019t match a known line — MK6 will ask you to match them.`;
+  if(w){ warn.style.display='flex'; warnTxt.textContent=w.trim(); } else warn.style.display='none';
+  document.getElementById('reviewSub').textContent = `${session.length} box${session.length===1?'':'es'} ready to send back to MK6.`;
+  document.getElementById('reviewModal').classList.add('show');
+}
+function closeReview(){ document.getElementById('reviewModal').classList.remove('show'); }
+
+/* build the pick file MK6 watches for, and save it (direct save → Share fallback) */
+async function submitPick(){
+  closeReview();
+  const payload = {
+    schema_version:'1.0', kind:'mk6_pick_result',
+    submitted_at: new Date().toISOString(),
+    device_id: (navigator.userAgent.match(/(iPhone|Android|iPad)/)||['device'])[0],
+    workbook: DATA.workbook||'',
+    picks: session.map((s,i)=>({
+      seq:i+1, label_id:s.label_id, order_id:s.order_id||'',
+      product:s.product||'', qty_text:s.qty_text||'',
+      actual_batch: s.na?'N/A':s.actual_batch, na:!!s.na, matched:!s.unknown
+    }))
+  };
+  const fname = 'MK6_pick_READY.json';
+  const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
+  // 1) try the native Share sheet (lets you save straight into OneDrive)
+  const file = new File([blob], fname, {type:'application/json'});
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file], title:'MK6 pick', text:'MagKeeper pick data'});
+      afterSubmit(); return; }catch(e){ /* user cancelled → fall through to download */ }
+  }
+  // 2) fallback: download it (save into your OneDrive folder)
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=fname; document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+  afterSubmit();
+}
+function afterSubmit(){
+  toast('✓ Pick saved as MK6_pick_READY.json — put it in your OneDrive folder','ok');
+  setTimeout(()=>{ resetPick(); go('home'); }, 1400);
+}
+
+/* ── camera (fallback) — uses BarcodeDetector where available ── */
+async function startCam(){
+  const v=document.getElementById('camVideo');
+  try{
+    camStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    v.srcObject=camStream; v.style.display='block'; await v.play();
+    if('BarcodeDetector' in window){
+      const det=new BarcodeDetector({formats:['qr_code','code_128','code_39','ean_13','data_matrix']});
+      const loop=async()=>{
+        if(!camStream) return;
+        try{ const codes=await det.detect(v); if(codes.length){ onScan(codes[0].rawValue); await new Promise(r=>setTimeout(r,900)); } }catch(e){}
+        if(camStream) requestAnimationFrame(loop);
+      };
+      requestAnimationFrame(loop);
+    } else {
+      toast('Camera scanning not supported here — use the Bluetooth scanner','warn');
+    }
+  }catch(e){ toast('Camera unavailable — use the Bluetooth scanner','warn'); setMode('scanner'); }
+}
+function stopCam(){ const v=document.getElementById('camVideo'); if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; } v.style.display='none'; }
+
+/* keep the scanner input focused on the pick screen so a BT scan always lands */
+document.addEventListener('click',()=>{ if(document.getElementById('scr-pick').classList.contains('active') && mode==='scanner'){ const i=document.getElementById('scanInput'); if(i && document.activeElement!==i) i.focus(); }});
+
+/* ── toast ── */
+let toastTimer;
+function toast(msg,kind){ const t=document.getElementById('toast'); t.textContent=msg;
+  t.className='toast show'+(kind==='warn'?' warn':kind==='err'?' err':'');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>{ t.className='toast'+(kind==='warn'?' warn':kind==='err'?' err':''); },2400); }
 </script>
 </body>
 </html>

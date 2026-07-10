@@ -172,26 +172,21 @@
   <div class="screen active" id="scr-home">
     <div class="home-hero"><div class="lock">🔒</div><h2>MagKeeper Pro 6</h2><p id="homeSite">Field Picking</p></div>
     <div class="big-btns">
-      <button class="big-btn pick" id="scanQrBtn" onclick="startPickFromQR()">
-        <span class="emoji">📷</span>
-        <span class="txt"><b>Scan order QR</b><span>Scan the QR on the pick sheet to load the pick — no file needed</span></span>
+      <button class="big-btn pick" id="startPickBtn" onclick="startPicking()">
+        <span class="emoji">📦</span>
+        <span class="txt"><b>Start picking</b><span>Scan any box QR then its batch — mix orders freely. Save when done.</span></span>
         <span class="chev">›</span>
       </button>
     </div>
-    <div class="file-chip" style="margin-top:2px;">
-      <div class="ic">🔗</div>
-      <div class="meta"><b>Or load a data file</b><span id="fileName">Fallback — tap Open</span></div>
-      <button onclick="pickFile()">Open</button>
+    <div class="big-btns" style="margin-top:4px;">
+      <button class="big-btn pick" id="resumePickBtn" onclick="go('pick')" style="opacity:.55;" disabled>
+        <span class="emoji">▶️</span>
+        <span class="txt"><b>Resume session</b><span id="resumeSub">No boxes scanned yet</span></span>
+        <span class="chev">›</span>
+      </button>
     </div>
     <input type="file" id="fileInput" accept=".json,application/json" style="display:none" onchange="loadFile(event)">
-    <div class="big-btns" style="margin-top:4px;">
-      <button class="big-btn pick" id="pickBtn" onclick="go('pick')" disabled style="opacity:.5;">
-        <span class="emoji">📥</span>
-        <span class="txt"><b>Continue pick</b><span id="pickBtnSub">Scan an order QR (or open a file) to begin</span></span>
-        <span class="chev">›</span>
-      </button>
-    </div>
-    <div class="home-foot" id="homeFoot">v2.0 (any-order + N/A) · Scan the order QR on your pick sheet to begin</div>
+    <div class="home-foot" id="homeFoot">v2.1 (continuous multi-order) · Scan box QR → batch, any order, save when done</div>
   </div>
 
   <!-- STOCK -->
@@ -437,17 +432,20 @@ function finalizePickLoad(order_id, items){
   if(bi){ bi.placeholder='Tap here, then scan the box QR…'; setTimeout(()=>bi.focus(),300); }
 }
 
-function stopScan(){ window._loadingPickQR=false; stopCam(); }
+function stopScan(){ stopCam(); }
 
-/* start the camera to scan the order QR from the pick sheet */
-function startPickFromQR(){
-  qrAcc = null;
-  window._loadingPickQR = true;
-  go('qrload');
-  const inp = document.getElementById('qrLoadInput');
-  const st = document.getElementById('qrLoadStatus');
-  if(st){ st.textContent=''; st.className='qr-load-status'; }
-  if(inp){ inp.value=''; setTimeout(()=>inp.focus(), 300); }
+/* Start a continuous picking session — no order to load. Just scan box QR →
+   batch, mixing orders freely, then Save. */
+function startPicking(){
+  // fresh session only if there isn't one in progress
+  if(!session || session.length===0){ resetPick(); }
+  go('pick');
+  setMode('scanner');
+  document.getElementById('pickTitle').textContent = 'Picking';
+  document.getElementById('pickOrderLbl').textContent = '';
+  setStage('qr');
+  const bi=document.getElementById('scanInput');
+  if(bi){ bi.placeholder='Tap here, then scan a box QR…'; setTimeout(()=>bi.focus(),300); }
 }
 
 /* process whatever the scanner typed into the big QR-load box */
@@ -482,7 +480,7 @@ function submitQrLoad(){
 
 
 function go(scr){
-  if((scr==='stock'||scr==='pick') && !DATA){ toast('Open the MK6 file first','warn'); return; }
+  if(scr==='stock' && !DATA){ toast('No stock data loaded','warn'); return; }
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('scr-'+scr).classList.add('active');
   const back=document.getElementById('backBtn'), title=document.getElementById('tbTitle'), sub=document.getElementById('tbSub');
@@ -536,58 +534,78 @@ function setStage(s){
   if(mode==='scanner' && inp) setTimeout(()=>inp.focus(),100);
 }
 
-/* the one entry point for a scan, whether from BT scanner, camera, or typing */
-/* dispatch a scan (from BT scanner Enter, camera, or typing) to the right
-   handler: while loading a pick from a QR → onPickQR; while picking → onScan */
+/* every scan (BT scanner Enter, camera, or typing) goes to onScan, which
+   classifies it by content (box QR vs batch barcode) and routes accordingly */
 function routeScan(raw){
   const val=(raw||'').trim(); if(!val) return;
-  if(window._loadingPickQR){ onPickQR(val); }
-  else { onScan(val); }
+  onScan(val);
+}
+
+/* Classify a scan by its CONTENT (not by the current stage). A box label QR is
+   the only thing that starts with 'MK6|' and has the |L..|B.. structure; a batch
+   barcode is anything else. This lets us catch out-of-order scans (e.g. a batch
+   scanned when we expect a QR, or a QR scanned when we expect a batch) instead of
+   silently filing the wrong value. */
+function isLabelQR(val){
+  const v=(val||'').trim();
+  if(v.indexOf('MK6|')!==0) return false;
+  // structural check: MK6|<order>|L<line>|B<box>|<sap>  (>=5 parts, L & B present)
+  const p=v.split('|');
+  return p.length>=5 && /^L\d+/.test(p[2]||'') && /^B\d+/.test(p[3]||'');
 }
 
 /* the one entry point for a scan, whether from BT scanner, camera, or typing */
 function onScan(raw){
   const val=(raw||'').trim(); if(!val) return;
+  const looksLikeQR = isLabelQR(val);
+
   if(stage==='qr'){
-    // must be an MK6 box QR
-    if(!val.startsWith('MK6|')){ toast('That\u2019s not a box QR — scan the MK6 label','err'); return; }
+    // We EXPECT a box label QR here.
+    if(!looksLikeQR){
+      // Got a batch barcode (or noise) before a box QR — the exact mix-up to guard against.
+      toast('That looks like a batch barcode. Scan the box QR label first, then its batch.','err');
+      return;
+    }
     if(seen.has(val)){ toast('That box was already scanned','err'); return; }
-    const item = itemsById[val];
-    if(!item){
-      // unknown label — still allow capture so nothing is lost; MK6 flags it on import
-      pendingItem = {label_id:val, product:'Unknown item', qty_text:'?', expected_batch:'', order_id:(val.split('|')[1]||''), unknown:true};
-    } else {
-      pendingItem = {...item};
-    }
-    const isFull=(pendingItem.qty_text||'').toLowerCase().includes('full');
-    document.getElementById('lfQty').textContent = isFull?'1':(pendingItem.qty_text||'').replace(/[^0-9]/g,'')||'?';
-    document.getElementById('lfUnit').textContent = isFull?'box':'pc';
-    document.getElementById('lfProduct').textContent = pendingItem.product||'—';
-    // if this product has no expected batch (e.g. harness wire), guide the user
-    // straight to N/A rather than waiting for a batch that doesn't exist.
-    const noBatch = !String(pendingItem.expected_batch||'').trim()
-                    || String(pendingItem.expected_batch||'').toUpperCase()==='N/A';
-    if(noBatch){
-      document.getElementById('lfNext').textContent = 'No batch for this product — tap “No batch” below';
-    } else {
-      document.getElementById('lfNext').textContent = 'Now scan the batch barcode on this box';
-    }
-    if(pendingItem.order_id){ document.getElementById('pickTitle').textContent='Picking '+pendingItem.order_id;
-      document.getElementById('pickOrderLbl').textContent=pendingItem.order_id; }
-    // progress feedback: how many of this order's boxes are now done
-    const totalBoxes=(DATA.pick_items||[]).length;
-    if(totalBoxes){ toast(`Box ${session.length+1} of ${totalBoxes}: ${pendingItem.product}`,'ok'); }
+    // self-describing label (batch-free): MK6|<order>|L<line>|B<box>|<sap>
+    // The QR identifies the ORDER LINE; the picker scans the actual batch off
+    // the physical box (or taps “No batch” for batch-less products).
+    const p = val.split('|');
+    const order_id = p[1] || '';
+    const line = p[2] || '';
+    const sap = p[4] || '';
+    pendingItem = {product:(order_id||'Box'), qty_text:'',
+                   label_id: val, order_id, line, sap};
+    document.getElementById('lfProduct').textContent = order_id || '—';
+    document.getElementById('lfQty').textContent = '📦';
+    document.getElementById('lfUnit').textContent = (order_id + (line?(' · '+line):''));
+    // We can't tell from a batch-free QR whether the box has a batch, so always
+    // offer both: scan the batch barcode, or tap “No batch”.
+    document.getElementById('lfNext').textContent =
+      'Scan the batch barcode on this box — or tap “No batch”';
+    document.getElementById('pickTitle').textContent = 'Picking';
+    document.getElementById('pickOrderLbl').textContent = order_id;
+    toast(`Box ${session.length+1}: ${order_id}`,'ok');
     setStage('batch');
     return;
   }
+
   if(stage==='batch'){
+    // We EXPECT a batch barcode here.
+    if(looksLikeQR){
+      // The user scanned the NEXT box's QR without giving this box a batch.
+      // Don't misfile the QR as a batch — tell them to finish this box first.
+      toast('Scan THIS box\u2019s batch barcode first (or tap “No batch”).','err');
+      return;
+    }
+    // a real batch barcode (or an explicit NA typed in)
     const na = val.toUpperCase()==='NA' || val.toUpperCase()==='N/A';
     session.push({...pendingItem, actual_batch: na?'N/A':val, na});
     seen.add(pendingItem.label_id);
     pendingItem=null;
     renderSession();
     toast('✓ captured','ok');
-    setStage('qr');   // straight into the next box
+    setStage('qr');   // ready for the next box
   }
 }
 
@@ -606,6 +624,10 @@ function renderSession(){
   const list=document.getElementById('sessList'), count=document.getElementById('sessCount'), submit=document.getElementById('submitBtn');
   count.textContent = session.length + (session.length===1?' item':' items');
   submit.disabled = session.length===0;
+  // reflect session state on the home 'Resume' button
+  const rb=document.getElementById('resumePickBtn'), rs=document.getElementById('resumeSub');
+  if(rb){ rb.disabled = session.length===0; rb.style.opacity = session.length? '1':'0.55'; }
+  if(rs){ rs.textContent = session.length? `${session.length} box${session.length===1?'':'es'} scanned — tap to continue` : 'No boxes scanned yet'; }
   if(!session.length){ list.innerHTML='<div class="empty-session"><div class="e-ic">📭</div><div>No boxes scanned yet.<br>Scan a box QR to begin.</div></div>'; return; }
   list.innerHTML = session.map((s,i)=>{
     const isFull=(s.qty_text||'').toLowerCase().includes('full');
@@ -643,38 +665,37 @@ function openReview(){
 function closeReview(){ document.getElementById('reviewModal').classList.remove('show'); }
 
 /* build the pick file MK6 watches for, and save it (direct save → Share fallback) */
+let _lastFname = '';
 async function submitPick(){
   closeReview();
+  const wbName = (typeof DATA!=='undefined' && DATA && DATA.workbook) ? DATA.workbook : '';
   const payload = {
     schema_version:'1.0', kind:'mk6_pick_result',
     submitted_at: new Date().toISOString(),
     device_id: (navigator.userAgent.match(/(iPhone|Android|iPad)/)||['device'])[0],
-    workbook: DATA.workbook||'',
+    workbook: wbName,
     picks: session.map((s,i)=>({
       seq:i+1, label_id:s.label_id, order_id:s.order_id||'',
       product:s.product||'', qty_text:s.qty_text||'',
-      actual_batch: s.na?'N/A':s.actual_batch, na:!!s.na, matched:!s.unknown
+      actual_batch: s.na?'N/A':s.actual_batch, na:!!s.na
     }))
   };
-  // name the pick file per-workbook so a test-workbook pick can't be imported
-  // into the live workbook (MK6 matches on this). Falls back to the generic name.
-  const stem = (DATA.workbook||'').replace(/\.[^.]+$/,'').replace(/[^A-Za-z0-9_-]/g,'_').slice(0,60);
+  const stem = wbName.replace(/\.[^.]+$/,'').replace(/[^A-Za-z0-9_-]/g,'_').slice(0,60);
   const fname = stem ? `MK6_pick_READY__${stem}.json` : 'MK6_pick_READY.json';
+  _lastFname = fname;
   const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
-  // 1) try the native Share sheet (lets you save straight into OneDrive)
   const file = new File([blob], fname, {type:'application/json'});
   if(navigator.canShare && navigator.canShare({files:[file]})){
     try{ await navigator.share({files:[file], title:'MK6 pick', text:'MagKeeper pick data'});
       afterSubmit(); return; }catch(e){ /* user cancelled → fall through to download */ }
   }
-  // 2) fallback: download it (save into your OneDrive folder)
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a'); a.href=url; a.download=fname; document.body.appendChild(a); a.click();
   document.body.removeChild(a); URL.revokeObjectURL(url);
   afterSubmit();
 }
 function afterSubmit(){
-  toast('✓ Pick saved as '+fname+' — put it in your OneDrive folder','ok');
+  toast('✓ Pick saved as '+_lastFname+' — put it in your OneDrive folder','ok');
   setTimeout(()=>{ resetPick(); go('home'); }, 1400);
 }
 
@@ -689,9 +710,7 @@ async function startCam(){
       const loop=async()=>{
         if(!camStream) return;
         try{ const codes=await det.detect(v); if(codes.length){
-          const val = codes[0].rawValue;
-          if(window._loadingPickQR){ onPickQR(val); }
-          else { onScan(val); }
+          routeScan(codes[0].rawValue);
           await new Promise(r=>setTimeout(r,900));
         } }catch(e){}
         if(camStream) requestAnimationFrame(loop);

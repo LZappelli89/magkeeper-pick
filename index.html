@@ -550,9 +550,12 @@ function routeScan(raw){
 function isLabelQR(val){
   const v=(val||'').trim();
   if(v.indexOf('MK6|')!==0) return false;
-  // structural check: MK6|<order>|L<line>|B<box>|<sap>  (>=5 parts, L & B present)
   const p=v.split('|');
-  return p.length>=5 && /^L\d+/.test(p[2]||'') && /^B\d+/.test(p[3]||'');
+  // new format: MK6|<order>|<sap>|<qty>|Line<n>  (5 parts, last starts 'Line')
+  if(p.length>=5 && /^Line\d+/i.test(p[4]||'')) return true;
+  // legacy formats: MK6|<order>|L<line>|B<box>|<sap>[|batch]
+  if(p.length>=5 && /^L\d+/.test(p[2]||'') && /^B\d+/.test(p[3]||'')) return true;
+  return false;
 }
 
 /* the one entry point for a scan, whether from BT scanner, camera, or typing */
@@ -568,25 +571,28 @@ function onScan(raw){
       return;
     }
     if(seen.has(val)){ toast('That box was already scanned','err'); return; }
-    // self-describing label (batch-free): MK6|<order>|L<line>|B<box>|<sap>
-    // The QR identifies the ORDER LINE; the picker scans the actual batch off
-    // the physical box (or taps “No batch” for batch-less products).
+    // self-describing label: MK6|<order>|<sap>|<qty>|Line<n>
+    // (legacy: MK6|<order>|L<line>|B<box>|<sap>) — parse both.
     const p = val.split('|');
-    const order_id = p[1] || '';
-    const line = p[2] || '';
-    const sap = p[4] || '';
-    pendingItem = {product:(order_id||'Box'), qty_text:'',
-                   label_id: val, order_id, line, sap};
+    let order_id, sap, qty_token, line;
+    if(p.length>=5 && /^Line\d+/i.test(p[4]||'')){
+      order_id = p[1]||''; sap = p[2]||''; qty_token = p[3]||''; line = p[4]||'';
+    } else {
+      order_id = p[1]||''; sap = p[4]||''; qty_token = ''; line = p[2]||'';
+    }
+    const qtyDisp = /^full$/i.test(qty_token) ? 'FULL' : (qty_token? qty_token+'pc' : '');
+    pendingItem = {product:(order_id||'Box'), qty_text:qtyDisp,
+                   label_id: val, order_id, line, sap, qty_token};
     document.getElementById('lfProduct').textContent = order_id || '—';
-    document.getElementById('lfQty').textContent = '📦';
+    document.getElementById('lfQty').textContent = qtyDisp || '📦';
     document.getElementById('lfUnit').textContent = (order_id + (line?(' · '+line):''));
-    // We can't tell from a batch-free QR whether the box has a batch, so always
+    // We can't tell from the QR whether the box has a batch, so always
     // offer both: scan the batch barcode, or tap “No batch”.
     document.getElementById('lfNext').textContent =
       'Scan the batch barcode on this box — or tap “No batch”';
     document.getElementById('pickTitle').textContent = 'Picking';
     document.getElementById('pickOrderLbl').textContent = order_id;
-    toast(`Box ${session.length+1}: ${order_id}`,'ok');
+    toast(`Box ${session.length+1}: ${order_id}${qtyDisp?(' · '+qtyDisp):''}`,'ok');
     setStage('batch');
     return;
   }

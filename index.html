@@ -340,17 +340,18 @@ function loadFile(ev){
       DATA = parsed;
       itemsById = {};
       (DATA.pick_items||[]).forEach(it=>itemsById[it.label_id]=it);
-      document.getElementById('fileName').textContent = f.name;
-      document.getElementById('conn').classList.add('on');
-      document.getElementById('connTxt').textContent = DATA.workbook ? DATA.workbook.replace(/\.[^.]+$/,'') : 'Linked';
-      var _sb=document.getElementById('stockBtn'); if(_sb) _sb.disabled=false;
-      document.getElementById('pickBtn').disabled = false;
+      const _set=(id,fn)=>{const el=document.getElementById(id); if(el) fn(el);};
+      _set('fileName', el=>el.textContent=f.name);
+      _set('conn', el=>el.classList.add('on'));
+      _set('connTxt', el=>el.textContent = DATA.workbook ? DATA.workbook.replace(/\.[^.]+$/,'') : 'Linked');
+      _set('stockBtn', el=>el.disabled=false);
+      _set('pickBtn', el=>el.disabled=false);
       const nStock=(DATA.stock||[]).length, nPick=(DATA.pick_items||[]).length;
-      var _sbs=document.getElementById('stockBtnSub'); if(_sbs) _sbs.textContent=`${nStock} product/magazine rows`;
-      document.getElementById('pickBtnSub').textContent = nPick ? `${nPick} boxes across pending orders` : 'No pending picks right now';
-      if(DATA.workbook) document.getElementById('homeSite').innerHTML = '\uD83D\uDCD8 <b>'+DATA.workbook+'</b>';
-      document.getElementById('homeFoot').textContent =
-        'Loaded ' + (DATA.generated_at||'') + ' \u00b7 ' + nStock + ' stock rows \u00b7 ' + nPick + ' pick boxes';
+      _set('stockBtnSub', el=>el.textContent=`${nStock} product/magazine rows`);
+      _set('pickBtnSub', el=>el.textContent = nPick ? `${nPick} boxes across pending orders` : 'No pending picks right now');
+      if(DATA.workbook) _set('homeSite', el=>el.innerHTML = '\uD83D\uDCD8 <b>'+DATA.workbook+'</b>');
+      _set('homeFoot', el=>el.textContent =
+        'Loaded ' + (DATA.generated_at||'') + ' \u00b7 ' + nStock + ' stock rows \u00b7 ' + nPick + ' pick boxes');
       toast(`MK6 data loaded \u00b7 ${nStock} stock \u00b7 ${nPick} picks`,'ok');
     }catch(e){
       toast('Loaded, but something went wrong reading the contents.','err');
@@ -648,18 +649,17 @@ function openReview(){
   const list=document.getElementById('reviewList'),warn=document.getElementById('reviewWarn'),warnTxt=document.getElementById('reviewWarnTxt');
   list.innerHTML = session.map(s=>{
     const isFull=(s.qty_text||'').toLowerCase().includes('full');
-    return `<div class="scan-row"><div class="r-ic">${s.unknown?'?':'✓'}</div>
-      <div class="r-info"><b>${s.product}</b><span>${s.order_id||''} · batch ${s.actual_batch}</span></div>
+    const batchTxt = s.na ? 'N/A' : (s.actual_batch || '—');
+    return `<div class="scan-row"><div class="r-ic">✓</div>
+      <div class="r-info"><b>${s.product||s.order_id||'Box'}</b><span>${s.order_id||''} · batch ${batchTxt}</span></div>
       <div class="r-qty">${isFull?'FULL':(s.qty_text||'')}</div></div>`;
   }).join('');
-  const totalPending=(DATA.pick_items||[]).length;
-  const remaining=totalPending - session.filter(s=>!s.unknown).length;
-  const unknowns=session.filter(s=>s.unknown).length;
-  let w='';
-  if(remaining>0) w += `${remaining} of ${totalPending} pending box(es) not scanned. `;
-  if(unknowns>0) w += `${unknowns} scan(s) didn\u2019t match a known line — MK6 will ask you to match them.`;
-  if(w){ warn.style.display='flex'; warnTxt.textContent=w.trim(); } else warn.style.display='none';
-  document.getElementById('reviewSub').textContent = `${session.length} box${session.length===1?'':'es'} ready to send back to MK6.`;
+  // continuous multi-order flow: there is no single loaded order to compare
+  // against, so no "X of Y pending" warning — MK6 matches each scan to its line
+  // on import and shows the review window there.
+  warn.style.display='none';
+  document.getElementById('reviewSub').textContent =
+    `${session.length} box${session.length===1?'':'es'} ready to save for MK6.`;
   document.getElementById('reviewModal').classList.add('show');
 }
 function closeReview(){ document.getElementById('reviewModal').classList.remove('show'); }

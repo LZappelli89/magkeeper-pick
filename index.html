@@ -284,6 +284,38 @@ let session = [];           // [{...item, actual_batch, na}]
 let seen = new Set();       // label_ids already captured (no double scan)
 let camStream = null;
 
+/* ── crash/sleep-safe persistence ──
+   Mobile browsers reclaim memory from backgrounded tabs, so an in-memory-only
+   session would be lost if the phone sleeps or the page refreshes mid-pick.
+   We mirror every scan into localStorage and restore it on load, so nothing is
+   lost until the pick is actually submitted. */
+const SESSION_KEY = 'mk6_pick_session_v1';
+function persistSession(){
+  try{
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+      savedAt: new Date().toISOString(),
+      session: session
+    }));
+  }catch(e){ /* storage full/blocked — fail quietly, still works in memory */ }
+}
+function clearPersistedSession(){
+  try{ localStorage.removeItem(SESSION_KEY); }catch(e){}
+}
+function restoreSession(){
+  try{
+    const raw = localStorage.getItem(SESSION_KEY);
+    if(!raw) return false;
+    const data = JSON.parse(raw);
+    if(data && Array.isArray(data.session) && data.session.length){
+      session = data.session;
+      seen = new Set(session.map(s=>s.label_id).filter(Boolean));
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+
+
 /* ── file load ── */
 function pickFile(){ document.getElementById('fileInput').click(); }
 function loadFile(ev){
@@ -628,6 +660,7 @@ function captureNoBatch(){
 }
 
 function renderSession(){
+  persistSession();   // save on every change (add/delete) — sleep/refresh safe
   const list=document.getElementById('sessList'), count=document.getElementById('sessCount'), submit=document.getElementById('submitBtn');
   count.textContent = session.length + (session.length===1?' item':' items');
   submit.disabled = session.length===0;
@@ -701,6 +734,7 @@ async function submitPick(){
   afterSubmit();
 }
 function afterSubmit(){
+  clearPersistedSession();   // pick submitted — drop the saved draft
   toast('✓ Pick saved as '+_lastFname+' — put it in your OneDrive folder','ok');
   setTimeout(()=>{ resetPick(); go('home'); }, 1400);
 }
@@ -777,6 +811,18 @@ let toastTimer;
 function toast(msg,kind){ const t=document.getElementById('toast'); t.textContent=msg;
   t.className='toast show'+(kind==='warn'?' warn':kind==='err'?' err':'');
   clearTimeout(toastTimer); toastTimer=setTimeout(()=>{ t.className='toast'+(kind==='warn'?' warn':kind==='err'?' err':''); },2400); }
+/* ── on load: recover any unsubmitted scans (survives sleep/refresh) ── */
+(function recoverOnLoad(){
+  try{
+    if(restoreSession()){
+      // there were unsubmitted scans saved — surface them so nothing is lost
+      renderSession();
+      setTimeout(()=>{
+        toast(`Recovered ${session.length} unsubmitted scan${session.length===1?'':'s'} — tap “Resume session”`,'ok');
+      }, 600);
+    }
+  }catch(e){}
+})();
 </script>
 </body>
 </html>

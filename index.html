@@ -399,6 +399,18 @@ function toast(msg, kind){
 }
 function esc(s){return String(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 
+/* Display a stored YYYY-MM-DD mfg date as DD-Mon-YYYY (e.g. 15-Jan-2026).
+   Storage/date-picker stay numeric; this is display only. */
+function fmtMfg(s){
+  s=String(s||'').trim();
+  const m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m) return s;
+  const mon=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const mi=parseInt(m[2],10)-1;
+  if(mi<0||mi>11) return s;
+  return `${m[3]}-${mon[mi]}-${m[1]}`;
+}
+
 function showScreen(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
   document.getElementById(id).classList.remove('hidden');
@@ -515,7 +527,7 @@ function renderStk(){
           <div class="meta">
             <span class="btag">${esc(c.actual_batch)}</span>
             ${c.full?'<span class="qtag full">FULL</span>':`<span class="qtag part">${esc(c.pieces)} pc</span>`}
-            ${c.mfg_date?`<span style="color:#8a8f96">mfg ${esc(c.mfg_date)}</span>`:''}
+            ${c.mfg_date?`<span style="color:#8a8f96">mfg ${esc(fmtMfg(c.mfg_date))}</span>`:''}
           </div>
         </div>
         <button class="del" onclick="delStk(${c.seq})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>
@@ -586,7 +598,7 @@ function renderGrn(){
           <div class="meta">
             <span class="btag">${esc(c.actual_batch)}</span>
             ${c.full?'<span class="qtag full">FULL</span>':`<span class="qtag part">${esc(c.pieces)} pc</span>`}
-            ${c.mfg_date?`<span style="color:#8a8f96">mfg ${esc(c.mfg_date)}</span>`:''}
+            ${c.mfg_date?`<span style="color:#8a8f96">mfg ${esc(fmtMfg(c.mfg_date))}</span>`:''}
             ${c.docket?`<span style="color:#8a8f96">dkt ${esc(c.docket)}</span>`:''}
           </div>
         </div>
